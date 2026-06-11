@@ -2,7 +2,7 @@
 Step-by-step test script for database.py
 
 Run from the backend/ directory:
-    python test_database.py
+    PYTHONPATH=. python3 app/database_test.py
 
 Each test prints PASS/FAIL and a short description.
 Uses an in-memory SQLite URL so no .env file is required.
@@ -10,6 +10,7 @@ Uses an in-memory SQLite URL so no .env file is required.
 
 import os
 import sys
+import unittest.mock as mock
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -52,11 +53,14 @@ except Exception as exc:
 
 print("\nStep 2 — missing DATABASE_URL raises ValueError")
 os.environ["ENV"] = "development"
-os.environ.pop("DATABASE_URL", None)
 
+# Patch load_dotenv to a no-op before touching os.environ so the .env file on
+# disk cannot repopulate DATABASE_URL during the import/reload.
 try:
     import app.database as _db_mod2
-    importlib.reload(_db_mod2)
+    with mock.patch("dotenv.load_dotenv", lambda **kw: None):
+        os.environ.pop("DATABASE_URL", None)
+        importlib.reload(_db_mod2)
     fail("missing DATABASE_URL raises ValueError", "no exception was raised")
 except ValueError as exc:
     if "DATABASE_URL is not set" in str(exc):
