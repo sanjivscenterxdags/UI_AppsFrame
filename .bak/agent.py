@@ -1,0 +1,127 @@
+"""
+SQLAlchemy models representing Expert AI Agents, Sub-Agents, their interactions AND relationships. 
+This includes the Agent, SubAgent, and AgentInteraction models, along with their relationships and constraints.
+    
+"""
+from datetime import datetime, timezone
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Table, ForeignKey, Text
+from sqlalchemy.orm import relationship
+from datetime import datetime   
+from app.database import Base
+
+# -----------------------------------------------------------------------------------------------------
+# Step 1: Association table mapping Expert Agents to Specific Sub-Agents 
+# for the many-to-many relationship between Expert-Agent and Sub-Agent
+# One Expert Agent can have multiple Sub-Agents, and one Sub-Agent can belong to multiple Expert Agents.
+# -----------------------------------------------------------------------------------------------------
+
+expert_sub_gent_association = Table(
+    'expert_sub_agent_mapping',
+    Base.metadata,
+    Column('expert_agent_id', 
+           Integer, 
+           ForeignKey('expert_agents.id', ondelete='CASCADE'), primary_key=True),     
+    Column('sub_agent_id', 
+           Integer, 
+           ForeignKey('sub_agents.id', ondelete='CASCADE'), primary_key=True)
+    )
+    
+# -----------------------------------------------------------------------------------------------------
+# Step 2: Define the ExpertAgent model representing the main AI agents with their attributes and relationships
+# -----------------------------------------------------------------------------------------------------
+class ExpertAgent(Base):
+    """
+    Represets an Expert AI Agent in a particular functional domain. 
+
+    Each Expert Agent can have multiple Sub-Agents that specialize in specific tasks 
+        within the domain.
+
+    The model includes attributes for the agent's name, description, timestamps, and a 
+        relationship to its Sub-Agents. 
+
+    The 'name' field is unique to ensure that each Expert Agent can be distinctly identified. 
+
+    The relationship to Sub-Agents is defined as a many-to-many relationship using 
+        the 'expert_sub_gent_association' table, allowing for flexible associations between 
+        Expert Agents and Sub-Agents. 
+
+    The model also includes automatic timestamping for creation and updates, facilitating 
+        tracking of when agents are created and modified.     
+    """
+
+    __tablename__ = 'expert_agents'
+    
+    id          = Column(Integer, primary_key=True, index=True)
+    # Unique name for the Expert Agent
+    name        = Column(String,  unique=True, nullable=False) 
+
+    # Optional description of the Expert Agent
+    description = Column(Text,    nullable=True)   
+
+    # Optional # HEX color for styling UI representation       
+    color_theme = Column(String,  nullable=False, default="#1e293b") 
+
+    # Flag to indicate if the agent is active or archived  
+    is_active   = Column(Boolean, default=True) 
+
+    # Timestamp of creation
+    created_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc) )  
+    
+    #Timestamp of last update 
+    updated_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))  
+
+    
+    # Many-to-Many Relationshipa between Expert Agents and Sub-Agents (Specific Agents Group) 
+    specific_sub_agents = relationship(
+        "SubAgent",
+        secondary=expert_sub_gent_association,
+        back_populates="associated_experts" 
+    ) 
+# end of ExpertAgent model definition
+
+class SubAgent(Base):
+    """
+    Represents a Sub-Agent that specializes in specific tasks within 
+        the domain of an Expert Agent.
+    OR Represents a Sub-Agent that can be associated with multiple Expert Agents, 
+        allowing for flexible specialization across different domains.
+
+    Each Sub-Agent can be associated with multiple Expert Agents, allowing for 
+        flexible specialization across different domains. 
+
+    The model includes attributes for the sub-agent's name, description, timestamps, 
+        and a relationship to its associated Expert Agents. 
+
+    The 'name' field is unique to ensure that each Sub-Agent can be distinctly identified. 
+
+    The relationship to Expert Agents is defined as a many-to-many relationship using 
+        the 'expert_sub_gent_association' table, allowing for flexible associations between 
+        Sub-Agents and Expert Agents. 
+
+    The model also includes automatic timestamping for creation and updates, facilitating 
+        tracking of when sub-agents are created and modified. 
+
+    """
+
+    __tablename__ = 'sub_agents'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    # Unique name for the Sub-Agent
+    name = Column(String,  unique=True, nullable=False) 
+    # Optional description of the Sub-Agent
+    description = Column(Text, nullable=True)   
+    # 'CAG' or 'SAG' to indicate the type of sub-agent (Common or Specialized)
+    group_type = Column(String, nullable=False, default="CAG") 
+    # Timestamp of creation
+    created_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc) )  
+    # Timestamp of last update 
+    updated_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))  
+
+    # Back-populated relationship to Expert Agents through the association table, 
+    #   allowing for many-to-many relationships
+    associated_experts = relationship(
+        "ExpertAgent",
+        secondary =expert_sub_gent_association,
+        back_populates="specific_sub_agents"
+    )
+# end of SubAgent model definition
