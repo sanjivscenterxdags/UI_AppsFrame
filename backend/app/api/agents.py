@@ -1,64 +1,65 @@
 """
-API routes for Expert Agents, Sub-Agents, and Agent Interactions.
+API endpoints for managing agents in the system.
+API routes for querying and selecting Expert AI Agents 
+available in the system. This includes fetching agent details, 
+capabilities, and metadata to facilitate informed agent selection by users.   
+
 """
+    
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
-from app.models.agent import ExpertAgent, SubAgent, AgentInteraction
-from app.schemas.agent import ExpertAgentResponse, SubAgentResponse, AgentInteractionResponse
+from app.models.agent import ExpertAgent 
+from app.schemas.agent import ExpertAgentResponse
+from app.models.log import SystemLog
 
 router = APIRouter(prefix="/agents", tags=["Agents"])
 
-# ---------------------------------------------------------------------------
-# Expert Agent routes
-# ---------------------------------------------------------------------------
+@router.get("/", response_model=List[ExpertAgentResponse])
+def list_agents(db: Session = Depends(get_db)):
+    """
+    Retrieve a list of all available Expert AI Agents marked 'active' with their details.
+    """
+    return db.query(ExpertAgent).filter(ExpertAgent.is_active == True).all()
+    
+@router.post("/{agent_id}/select")  
+def select_agent(agent_id: int, db: Session = Depends(get_db)):
+    """
+    Endpoint to select an agent by ID. In a real implementation, this would 
+    involve session management and state tracking to associate the selected 
+    agent with the user's session for subsequent interactions.
+    
+    Register the selection of an AI agent and log the event for auditing and analytics.    
 
-@router.get("/experts", response_model=List[ExpertAgentResponse])
-def get_expert_agents(db: Session = Depends(get_db)):
-    """Return all Expert Agents with their associated Sub-Agents."""
-    return db.query(ExpertAgent).all()
-
-@router.get("/experts/{expert_id}", response_model=ExpertAgentResponse)
-def get_expert_agent(expert_id: int, db: Session = Depends(get_db)):
-    """Return a single Expert Agent by ID."""
-    agent = db.query(ExpertAgent).filter(ExpertAgent.id == expert_id).first()
+    """
+    agent = db.query(ExpertAgent).filter(ExpertAgent.id == agent_id, ExpertAgent.is_active == True).first()
+    
     if not agent:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Expert Agent not found")
-    return agent
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Agent with ID {agent_id} not found or inactive."
+        )
+    
+    # Placeholder for session management logic to track selected agent
+    # In production, implement proper session handling to maintain user-agent association
+    
+    # Write select action directly to database logs for simplicity. 
+    # In production, consider using a more robust logging mechanism.
+    log_entry = SystemLog(
+        level="INFO",
+        source="USER",
+        message=f"Agent '{agent.name}' (ID: {agent.id}) selected by user.",
+        metadata_json=f'{{ "agent_id": {agent.id}, "name": "{agent.name}" }}'
+    )
+    db.add(log_entry)
+    db.commit()
+    
+    return {
+        "status": "success",
+        "message": f"Agent '{agent.name}' selected successfully.",
+        "agent_id": agent.id
+    }
 
-# ---------------------------------------------------------------------------
-# Sub-Agent routes
-# ---------------------------------------------------------------------------
 
-@router.get("/sub-agents", response_model=List[SubAgentResponse])
-def get_sub_agents(db: Session = Depends(get_db)):
-    """Return all Sub-Agents."""
-    return db.query(SubAgent).all()
-
-@router.get("/sub-agents/{sub_agent_id}", response_model=SubAgentResponse)
-def get_sub_agent(sub_agent_id: int, db: Session = Depends(get_db)):
-    """Return a single Sub-Agent by ID."""
-    agent = db.query(SubAgent).filter(SubAgent.id == sub_agent_id).first()
-    if not agent:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sub-Agent not found")
-    return agent
-
-# ---------------------------------------------------------------------------
-# Agent Interaction routes
-# ---------------------------------------------------------------------------
-
-@router.get("/interactions", response_model=List[AgentInteractionResponse])
-def get_interactions(limit: int = 50, db: Session = Depends(get_db)):
-    """Return the most recent Agent Interactions."""
-    return db.query(AgentInteraction).order_by(AgentInteraction.created_at.desc()).limit(limit).all()
-
-@router.get("/interactions/{interaction_id}", response_model=AgentInteractionResponse)
-def get_interaction(interaction_id: int, db: Session = Depends(get_db)):
-    """Return a single Agent Interaction by ID."""
-    interaction = db.query(AgentInteraction).filter(AgentInteraction.id == interaction_id).first()
-    if not interaction:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Interaction not found")
-    return interaction
-
-# end of file ./api/agents.py
+# // end of file
