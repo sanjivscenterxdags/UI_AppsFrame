@@ -54,21 +54,32 @@ except Exception as exc:
 print("\nStep 2 — missing DATABASE_URL raises ValueError")
 os.environ["ENV"] = "development"
 
-# Patch load_dotenv to a no-op before touching os.environ so the .env file on
-# disk cannot repopulate DATABASE_URL during the import/reload.
+# importlib.reload re-executes `from dotenv import load_dotenv`, so patching
+# the module attribute is overwritten before our mock is called. Instead we
+# patch os.getenv to return None for DATABASE_URL, which fires after load_dotenv
+# runs and is guaranteed to be in effect when the guard check executes.
+import app.database as _db_mod2
+_real_getenv = os.getenv
+
+def _getenv_no_db_url(key, *args):
+    if key == "DATABASE_URL":
+        return None
+    return _real_getenv(key, *args)
+
 try:
-    import app.database as _db_mod2
-    with mock.patch("dotenv.load_dotenv", lambda **kw: None):
-        os.environ.pop("DATABASE_URL", None)
-        importlib.reload(_db_mod2)
-    fail("missing DATABASE_URL raises ValueError", "no exception was raised")
-except ValueError as exc:
-    if "DATABASE_URL is not set" in str(exc):
-        ok("missing DATABASE_URL raises ValueError")
-    else:
-        fail("missing DATABASE_URL raises ValueError", f"unexpected message: {exc}")
-except Exception as exc:
-    fail("missing DATABASE_URL raises ValueError", f"wrong exception type: {type(exc).__name__}: {exc}")
+    with mock.patch("os.getenv", side_effect=_getenv_no_db_url):
+        try:
+            importlib.reload(_db_mod2)
+            fail("missing DATABASE_URL raises ValueError", "no exception was raised")
+        except ValueError as exc:
+            if "DATABASE_URL is not set" in str(exc):
+                ok("missing DATABASE_URL raises ValueError")
+            else:
+                fail("missing DATABASE_URL raises ValueError", f"unexpected message: {exc}")
+        except Exception as exc:
+            fail("missing DATABASE_URL raises ValueError", f"wrong exception type: {type(exc).__name__}: {exc}")
+finally:
+    pass  # mock.patch context manager restores os.getenv on exit
 
 # ── Step 3: module loads cleanly in development ───────────────────────────────
 

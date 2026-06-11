@@ -1,6 +1,8 @@
 """
 FastAPI Main Application setup and router registration
 """
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import Base, engine
@@ -12,13 +14,18 @@ import app.models.log     # noqa: F401
 
 from app.api import auth, agents, logs
 
-# Create database tables for all imported models
-Base.metadata.create_all(bind=engine)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
+
 
 app = FastAPI(
     title="CDAGS AI Agent Management API",
     description="Mixture of Experts (MOE) orchestration framework. API for managing and interacting with Expert AI Agents",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Enable CORS for frontend integration; restrict allow_origins in production
@@ -39,6 +46,4 @@ app.include_router(logs.router,   prefix="/api")
 @app.get("/health", tags=["Health"])
 def health_check():
     return {"status": "ok"}
-
-
 

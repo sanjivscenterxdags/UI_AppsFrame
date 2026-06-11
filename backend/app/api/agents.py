@@ -5,13 +5,14 @@ available in the system. This includes fetching agent details,
 capabilities, and metadata to facilitate informed agent selection by users.   
 
 """
-    
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
-from app.models.agent import ExpertAgent 
-from app.schemas.agent import ExpertAgentResponse
+from app.models.agent import ExpertAgent
+from app.schemas.agent import ExpertAgentResponse, AgentSelectResponse
 from app.models.log import SystemLog
 
 router = APIRouter(prefix="/agents", tags=["Agents"])
@@ -23,7 +24,7 @@ def list_agents(db: Session = Depends(get_db)):
     """
     return db.query(ExpertAgent).filter(ExpertAgent.is_active == True).all()
     
-@router.post("/{agent_id}/select")  
+@router.post("/{agent_id}/select", response_model=AgentSelectResponse)
 def select_agent(agent_id: int, db: Session = Depends(get_db)):
     """
     Endpoint to select an agent by ID. In a real implementation, this would 
@@ -50,7 +51,7 @@ def select_agent(agent_id: int, db: Session = Depends(get_db)):
         level="INFO",
         source="USER",
         message=f"Agent '{agent.name}' (ID: {agent.id}) selected by user.",
-        metadata_json=f'{{ "agent_id": {agent.id}, "name": "{agent.name}" }}'
+        metadata_json=json.dumps({"agent_id": agent.id, "name": agent.name})
     )
     db.add(log_entry)
     db.commit()
@@ -62,4 +63,4 @@ def select_agent(agent_id: int, db: Session = Depends(get_db)):
     }
 
 
-# // end of file
+# end of file

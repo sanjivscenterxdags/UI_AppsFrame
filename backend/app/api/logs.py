@@ -1,7 +1,7 @@
 """
 API routes for streaming system and user interaction logs.
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
@@ -11,11 +11,11 @@ from app.schemas.log import SystemLogCreate, SystemLogResponse
 router = APIRouter(prefix="/logs", tags=["Logs"])
 
 @router.get("/", response_model=List[SystemLogResponse])
-def get_logs(limit: int = 50, db: Session = Depends(get_db)):
+def get_logs(limit: int = Query(50, ge=1, le=500), db: Session = Depends(get_db)):
     """
-    Get the most recent log entries ordered chronologically.
+    Get the most recent log entries, newest first. Max 500 per request.
     """
-    return db.query(SystemLog).order_by(SystemLog.created_at.asc()).limit(limit).all()
+    return db.query(SystemLog).order_by(SystemLog.created_at.desc()).limit(limit).all()
 
 @router.post("/", response_model=SystemLogResponse)
 def create_log(log: SystemLogCreate, db: Session = Depends(get_db)):

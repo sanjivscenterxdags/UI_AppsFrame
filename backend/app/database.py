@@ -27,18 +27,16 @@ from sqlalchemy.orm import declarative_base, Session, sessionmaker
 # Step 0: Load environment variables from .env file
 load_dotenv()
 
-# Step 1: Read the environment state
+# Step 1: Read and validate the environment state
 current_env = os.getenv("ENV", "development")  # Default to 'development' if ENV is not set
 
-if current_env == "production":
-    # In PROD, DATABASE_URL is pulled from environment variables for security reasons
-    DATABASE_URL = os.getenv("DATABASE_URL")
-elif current_env == "development":
-    # In DEV, use a local SQLite database defined in .env
-    DATABASE_URL = os.getenv("DATABASE_URL")
-    print(f"DATABASE_URL set in this env is: {DATABASE_URL}")
-else:
+if current_env not in ("development", "production"):
     raise ValueError(f"Unknown ENV value: '{current_env}'. Expected 'development' or 'production'.")
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if current_env == "development":
+    print(f"DATABASE_URL set in this env is: {DATABASE_URL}")
 
 # Step 1A: Quick check to ensure DATABASE_URL is set
 if not DATABASE_URL:

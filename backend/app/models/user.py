@@ -35,7 +35,3 @@ Represents a user in the system.
 # end of User model definition
 
 
-
-
-
-

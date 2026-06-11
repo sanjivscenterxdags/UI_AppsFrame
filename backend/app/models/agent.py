@@ -53,6 +53,8 @@ class ExpertAgent(Base):
     id          = Column(Integer, primary_key=True, index=True)
     # Unique name for the Expert Agent
     name        = Column(String,  unique=True, nullable=False)
+    # Machine-readable slug derived from name (e.g. "ot_plant_data_manager")
+    code_name   = Column(String,  unique=True, nullable=True)
 
     # Optional description of the Expert Agent
     description = Column(Text,    nullable=True)

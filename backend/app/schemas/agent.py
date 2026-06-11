@@ -30,7 +30,7 @@ class ExpertAgentResponse(BaseModel):
     id: int = Field(..., description="Unique identifier for the Expert Agent.")
     name: str = Field(..., description="Name of the Expert Agent.")
     description: Optional[str] = Field(None, description="Optional description of the Expert Agent.")
-    color_theme: Optional[str] = Field(None, description="Optional HEX color theme for UI representation.")
+    color_theme: str = Field(..., description="HEX color theme for UI representation.")
     is_active: bool = Field(..., description="Indicates whether the Expert Agent is currently active.")
     created_at: datetime = Field(..., description="Timestamp when the Expert Agent was created.")
     updated_at: Optional[datetime] = Field(None, description="Timestamp when the Expert Agent was last updated.")
@@ -38,6 +38,12 @@ class ExpertAgentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class AgentSelectResponse(BaseModel):
+    status: str = Field(..., description="Outcome of the select operation.")
+    message: str = Field(..., description="Human-readable confirmation message.")
+    agent_id: int = Field(..., description="ID of the selected Expert Agent.")
+
 
 class AgentInteractionResponse(BaseModel):
     """

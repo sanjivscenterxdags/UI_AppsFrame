@@ -1,10 +1,15 @@
-from pydantic import BaseModel, Field
+"""
+Pydantic schemas for user authentication and user management.
+"""
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 
+
 class UserLogin(BaseModel):
-    username: str
-    password: str
+    username: str = Field(..., min_length=1, description="Username to authenticate.")
+    password: str = Field(..., min_length=1, description="Password to authenticate.")
+
 
 class LoginResponse(BaseModel):
     status: str
@@ -14,10 +19,12 @@ class LoginResponse(BaseModel):
     email: str
     role: str
 
+
 class UserCreate(BaseModel):
-    username: str = Field(..., description="Unique username for the new user.")
-    email: str = Field(..., description="Unique email address for the new user.")
-    password: str = Field(..., description="Plain-text password (will be hashed before storage).")
+    username: str = Field(..., min_length=1, description="Unique username for the new user.")
+    email: EmailStr = Field(..., description="Unique email address for the new user.")
+    password: str = Field(..., min_length=8, description="Plain-text password (will be hashed before storage).")
+
 
 class UserResponse(BaseModel):
     id: int = Field(..., description="Unique identifier for the user.")
