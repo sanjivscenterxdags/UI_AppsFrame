@@ -1,0 +1,56 @@
+:root {
+  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --border-radius-lg: 12px;
+  --border-radius-md: 8px;
+  --border-radius-sm: 4px;
+  --border-width-thick: 3px;
+  --transition-speed: 0.25s;
+
+  --banner-height: 70px;
+  --footer-height: 30px;
+  --log-panel-height: 20vh;
+}
+
+body.light-theme {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+
+  --border-color: #cbd5e1;
+  --border-color-dark: #475569;
+  --shadow-color: rgba(15, 23, 42, 0.08);
+
+  --active-highlight: #3b82f6;
+  --active-highlight-bg: #eff6ff;
+
+  --log-bg: #0f172a;
+  --log-text: #f8fafc;
+  --log-time: #38bdf8;
+  --log-info: #34d399;
+}
+
+body.dark-theme {
+  --bg-primary: #0b0f19;
+  --bg-secondary: #121824;
+  --bg-tertiary: #1e293b;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+
+  --border-color: #334155;
+  --border-color-dark: #94a3b8;
+  --shadow-color: rgba(0, 0, 0, 0.4);
+
+  --active-highlight: #3b82f6;
+  --active-highlight-bg: rgba(59, 130, 246, 0.15);
+
+  --log-bg: #05070a;
+  --log-text: #e2e8f0;
+  --log-time: #7dd3fc;
+  --log-info: #4ade80;
+}

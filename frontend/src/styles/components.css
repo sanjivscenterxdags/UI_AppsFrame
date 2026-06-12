@@ -1,0 +1,137 @@
+/* Login Page Layout */
+.login-overlay {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--bg-primary);
+}
+
+.login-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  padding: 40px;
+  width: 380px;
+  box-shadow: 0 10px 25px var(--shadow-color);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.login-title {
+  font-size: 24px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.form-input {
+  padding: 10px 12px;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  outline: none;
+  font-size: 14px;
+}
+
+.form-input:focus {
+  border-color: var(--active-highlight);
+}
+
+.login-btn {
+  padding: 12px;
+  background-color: var(--active-highlight);
+  color: white;
+  font-weight: 600;
+  border-radius: var(--border-radius-md);
+  border: none;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+/* Sidebar List */
+.sidebar-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-item {
+  padding: 12px;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all var(--transition-speed);
+}
+
+.sidebar-item.active {
+  color: var(--active-highlight);
+  background-color: var(--active-highlight-bg);
+  font-weight: 600;
+}
+
+/* Agent Grid */
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.agent-tile {
+  background-color: var(--bg-secondary);
+  border-radius: var(--border-radius-lg);
+  padding: 30px 20px;
+  cursor: pointer;
+  transition: transform var(--transition-speed), box-shadow var(--transition-speed);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 120px;
+  text-align: center;
+}
+
+.agent-tile:hover {
+  transform: translateY(-4px);
+}
+
+.agent-tile-title {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+/* Theme Toggle Button */
+.theme-toggle {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  font-size: 18px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}

@@ -1,0 +1,64 @@
+.app-container {
+  display: grid;
+  grid-template-rows: var(--banner-height) 1fr var(--log-panel-height) var(--footer-height);
+  grid-template-columns: 280px 1fr;
+  grid-template-areas:
+    "banner banner"
+    "sidebar main"
+    "logs logs"
+    "footer footer";
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  transition: background-color var(--transition-speed), color var(--transition-speed);
+}
+
+.banner {
+  grid-area: banner;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+.sidebar {
+  grid-area: sidebar;
+  background-color: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  padding: 20px 16px;
+  overflow-y: auto;
+}
+
+.main-content {
+  grid-area: main;
+  padding: 24px;
+  overflow-y: auto;
+  background-color: var(--bg-primary);
+}
+
+.log-panel {
+  grid-area: logs;
+  background-color: var(--log-bg);
+  border-top: 2px solid var(--border-color);
+  color: var(--log-text);
+  padding: 16px 24px;
+  overflow-y: auto;
+  font-family: monospace;
+}
+
+.footer {
+  grid-area: footer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}

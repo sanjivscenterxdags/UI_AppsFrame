@@ -1,0 +1,500 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1820" viewBox="0 0 1400 1820" font-family="Segoe UI, Arial, sans-serif">
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- BACKGROUND                                                  -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <rect width="1400" height="1820" fill="#0f172a"/>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- TITLE BLOCK                                                 -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <rect x="60" y="24" width="1280" height="80" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+  <text x="700" y="58" text-anchor="middle" font-size="22" font-weight="700" fill="#f1f5f9">CDAGS — Mixture of Experts (MOE) Agent Architecture</text>
+  <text x="700" y="84" text-anchor="middle" font-size="13" fill="#94a3b8">OT Plant AI Management Framework · FastAPI + SQLAlchemy · v1.0.0</text>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LAYER LABELS (left spine)                                   -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Layer 0 label -->
+  <text x="28" y="182" text-anchor="middle" font-size="10" fill="#64748b" transform="rotate(-90,28,182)">LAYER 0</text>
+  <!-- Layer 1 label -->
+  <text x="28" y="352" text-anchor="middle" font-size="10" fill="#64748b" transform="rotate(-90,28,352)">LAYER 1</text>
+  <!-- Layer 2 label -->
+  <text x="28" y="620" text-anchor="middle" font-size="10" fill="#64748b" transform="rotate(-90,28,620)">LAYER 2</text>
+  <!-- Layer 3 CAG label -->
+  <text x="28" y="1010" text-anchor="middle" font-size="10" fill="#64748b" transform="rotate(-90,28,1010)">LAYER 3a</text>
+  <!-- Layer 3 SAG label -->
+  <text x="28" y="1260" text-anchor="middle" font-size="10" fill="#64748b" transform="rotate(-90,28,1260)">LAYER 3b</text>
+  <!-- Layer 4 label -->
+  <text x="28" y="1490" text-anchor="middle" font-size="10" fill="#64748b" transform="rotate(-90,28,1490)">LAYER 4</text>
+  <!-- Layer 5 label -->
+  <text x="28" y="1700" text-anchor="middle" font-size="10" fill="#64748b" transform="rotate(-90,28,1700)">LAYER 5</text>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LAYER 0 — USER / FRONTEND CLIENT                           -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <rect x="60" y="124" width="1280" height="96" rx="10" fill="#1e293b" stroke="#475569" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="80" y="145" font-size="11" font-weight="600" fill="#64748b">LAYER 0 — USER / FRONTEND CLIENT</text>
+
+  <!-- User box -->
+  <rect x="560" y="152" width="280" height="56" rx="8" fill="#0ea5e9" fill-opacity="0.15" stroke="#0ea5e9" stroke-width="1.5"/>
+  <text x="700" y="174" text-anchor="middle" font-size="13" font-weight="700" fill="#38bdf8">👤  User / Frontend Client</text>
+  <text x="700" y="194" text-anchor="middle" font-size="11" fill="#7dd3fc">Browser App · Mobile · curl</text>
+
+  <!-- Arrow down from User to API GW -->
+  <line x1="700" y1="208" x2="700" y2="238" stroke="#0ea5e9" stroke-width="2" marker-end="url(#arrowBlue)"/>
+  <text x="715" y="228" font-size="10" fill="#0ea5e9">HTTP / JSON</text>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LAYER 1 — API GATEWAY                                       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <rect x="60" y="240" width="1280" height="160" rx="10" fill="#1e293b" stroke="#475569" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="80" y="261" font-size="11" font-weight="600" fill="#64748b">LAYER 1 — API GATEWAY  (app/main.py + app/api/)</text>
+
+  <!-- Gateway outer box -->
+  <rect x="200" y="268" width="1000" height="116" rx="8" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="700" y="288" text-anchor="middle" font-size="13" font-weight="700" fill="#93c5fd">⚡  FastAPI API Gateway</text>
+
+  <!-- Auth endpoint pill -->
+  <rect x="220" y="296" width="210" height="34" rx="6" fill="#1d4ed8" fill-opacity="0.4" stroke="#3b82f6" stroke-width="1"/>
+  <text x="325" y="309" text-anchor="middle" font-size="10" font-weight="600" fill="#bfdbfe">POST /api/auth/login</text>
+  <text x="325" y="323" text-anchor="middle" font-size="10" fill="#93c5fd">JWT Auth · bcrypt verify</text>
+
+  <!-- Agents endpoint pill -->
+  <rect x="450" y="296" width="230" height="34" rx="6" fill="#1d4ed8" fill-opacity="0.4" stroke="#3b82f6" stroke-width="1"/>
+  <text x="565" y="309" text-anchor="middle" font-size="10" font-weight="600" fill="#bfdbfe">GET  /api/agents/</text>
+  <text x="565" y="323" text-anchor="middle" font-size="10" fill="#93c5fd">List Active Expert Agents</text>
+
+  <!-- Select endpoint pill -->
+  <rect x="700" y="296" width="250" height="34" rx="6" fill="#1d4ed8" fill-opacity="0.4" stroke="#3b82f6" stroke-width="1"/>
+  <text x="825" y="309" text-anchor="middle" font-size="10" font-weight="600" fill="#bfdbfe">POST /api/agents/{id}/select</text>
+  <text x="825" y="323" text-anchor="middle" font-size="10" fill="#93c5fd">Select Expert Agent · Log Event</text>
+
+  <!-- Logs endpoint pill -->
+  <rect x="970" y="296" width="210" height="34" rx="6" fill="#1d4ed8" fill-opacity="0.4" stroke="#3b82f6" stroke-width="1"/>
+  <text x="1075" y="309" text-anchor="middle" font-size="10" font-weight="600" fill="#bfdbfe">GET/POST /api/logs/</text>
+  <text x="1075" y="323" text-anchor="middle" font-size="10" fill="#93c5fd">System Log Stream</text>
+
+  <!-- CORS + Lifespan note -->
+  <text x="700" y="363" text-anchor="middle" font-size="10" fill="#64748b">CORSMiddleware · lifespan(create_all) · Pydantic validation · get_db() session injection</text>
+
+  <!-- Arrow down from API GW to Expert Agents -->
+  <line x1="700" y1="400" x2="700" y2="430" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrowMedBlue)"/>
+  <text x="716" y="420" font-size="10" fill="#3b82f6">Routes to Expert Layer</text>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LAYER 2 — EXPERT AGENTS (ORCHESTRATORS)                    -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <rect x="60" y="432" width="1280" height="330" rx="10" fill="#1e293b" stroke="#475569" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="80" y="453" font-size="11" font-weight="600" fill="#64748b">LAYER 2 — EXPERT AGENTS  (Orchestrators / Gating Function)  ·  app/models/agent.py → ExpertAgent</text>
+
+  <!-- MOE Gating label -->
+  <rect x="580" y="458" width="240" height="28" rx="6" fill="#78350f" fill-opacity="0.5" stroke="#f59e0b" stroke-width="1"/>
+  <text x="700" y="477" text-anchor="middle" font-size="11" font-weight="700" fill="#fcd34d">🔀  MOE Gating Layer — routes tasks to domain specialists</text>
+
+  <!-- Expert Agent 1: UI Color Palette -->
+  <rect x="80" y="496" width="148" height="108" rx="8" fill="#334155" fill-opacity="0.8" stroke="#334155" stroke-width="2.5"/>
+  <rect x="80" y="496" width="148" height="18" rx="8" fill="#334155"/>
+  <rect x="80" y="506" width="148" height="8" fill="#334155"/>
+  <text x="154" y="510" text-anchor="middle" font-size="9" font-weight="700" fill="#f1f5f9">EA-1</text>
+  <text x="154" y="526" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">UI Color</text>
+  <text x="154" y="540" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">Palette</text>
+  <text x="154" y="554" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">Manager</text>
+  <rect x="90" y="562" width="128" height="16" rx="3" fill="#1e293b"/>
+  <text x="154" y="574" text-anchor="middle" font-size="9" fill="#94a3b8">#334155 Slate Grey</text>
+  <text x="154" y="594" text-anchor="middle" font-size="9" fill="#64748b">ui_color_palate_mgr</text>
+
+  <!-- Expert Agent 2: OT Plant Data -->
+  <rect x="244" y="496" width="148" height="108" rx="8" fill="#1e3a8a" fill-opacity="0.8" stroke="#1e3a8a" stroke-width="2.5"/>
+  <rect x="244" y="496" width="148" height="18" rx="8" fill="#1e3a8a"/>
+  <rect x="244" y="506" width="148" height="8" fill="#1e3a8a"/>
+  <text x="318" y="510" text-anchor="middle" font-size="9" font-weight="700" fill="#f1f5f9">EA-2</text>
+  <text x="318" y="526" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">OT Plant</text>
+  <text x="318" y="540" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">Data</text>
+  <text x="318" y="554" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">Manager</text>
+  <rect x="254" y="562" width="128" height="16" rx="3" fill="#1e293b"/>
+  <text x="318" y="574" text-anchor="middle" font-size="9" fill="#94a3b8">#1e3a8a Navy Blue</text>
+  <text x="318" y="594" text-anchor="middle" font-size="9" fill="#64748b">ot_plant_data_mgr</text>
+
+  <!-- Expert Agent 3: Asset Register -->
+  <rect x="408" y="496" width="148" height="108" rx="8" fill="#0f766e" fill-opacity="0.8" stroke="#0f766e" stroke-width="2.5"/>
+  <rect x="408" y="496" width="148" height="18" rx="8" fill="#0f766e"/>
+  <rect x="408" y="506" width="148" height="8" fill="#0f766e"/>
+  <text x="482" y="510" text-anchor="middle" font-size="9" font-weight="700" fill="#f1f5f9">EA-3</text>
+  <text x="482" y="526" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">OT Plant Asset</text>
+  <text x="482" y="540" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">Register</text>
+  <text x="482" y="554" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">Manager</text>
+  <rect x="418" y="562" width="128" height="16" rx="3" fill="#1e293b"/>
+  <text x="482" y="574" text-anchor="middle" font-size="9" fill="#94a3b8">#0f766e Deep Teal</text>
+  <text x="482" y="594" text-anchor="middle" font-size="9" fill="#64748b">ot_asset_register_mgr</text>
+
+  <!-- Expert Agent 4: Risk Register -->
+  <rect x="572" y="496" width="148" height="108" rx="8" fill="#15803d" fill-opacity="0.8" stroke="#15803d" stroke-width="2.5"/>
+  <rect x="572" y="496" width="148" height="18" rx="8" fill="#15803d"/>
+  <rect x="572" y="506" width="148" height="8" fill="#15803d"/>
+  <text x="646" y="510" text-anchor="middle" font-size="9" font-weight="700" fill="#f1f5f9">EA-4</text>
+  <text x="646" y="526" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">OT Plant Risk</text>
+  <text x="646" y="540" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">Register</text>
+  <text x="646" y="554" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">Manager</text>
+  <rect x="582" y="562" width="128" height="16" rx="3" fill="#1e293b"/>
+  <text x="646" y="574" text-anchor="middle" font-size="9" fill="#94a3b8">#15803d Forest Green</text>
+  <text x="646" y="594" text-anchor="middle" font-size="9" fill="#64748b">ot_risk_register_mgr</text>
+
+  <!-- Expert Agent 5: Change Management -->
+  <rect x="736" y="496" width="148" height="108" rx="8" fill="#991b1b" fill-opacity="0.8" stroke="#991b1b" stroke-width="2.5"/>
+  <rect x="736" y="496" width="148" height="18" rx="8" fill="#991b1b"/>
+  <rect x="736" y="506" width="148" height="8" fill="#991b1b"/>
+  <text x="810" y="510" text-anchor="middle" font-size="9" font-weight="700" fill="#f1f5f9">EA-5</text>
+  <text x="810" y="526" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">OT Plant Change</text>
+  <text x="810" y="540" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">Management</text>
+  <text x="810" y="554" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">Manager</text>
+  <rect x="746" y="562" width="128" height="16" rx="3" fill="#1e293b"/>
+  <text x="810" y="574" text-anchor="middle" font-size="9" fill="#94a3b8">#991b1b Deep Crimson</text>
+  <text x="810" y="594" text-anchor="middle" font-size="9" fill="#64748b">ot_change_mgmt_mgr</text>
+
+  <!-- Expert Agent 6: Logging & Monitoring -->
+  <rect x="900" y="496" width="148" height="108" rx="8" fill="#b45309" fill-opacity="0.8" stroke="#b45309" stroke-width="2.5"/>
+  <rect x="900" y="496" width="148" height="18" rx="8" fill="#b45309"/>
+  <rect x="900" y="506" width="148" height="8" fill="#b45309"/>
+  <text x="974" y="510" text-anchor="middle" font-size="9" font-weight="700" fill="#f1f5f9">EA-6</text>
+  <text x="974" y="526" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">OT Plant Log</text>
+  <text x="974" y="540" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">&amp; Monitoring</text>
+  <text x="974" y="554" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">Manager</text>
+  <rect x="910" y="562" width="128" height="16" rx="3" fill="#1e293b"/>
+  <text x="974" y="574" text-anchor="middle" font-size="9" fill="#94a3b8">#b45309 Dark Amber</text>
+  <text x="974" y="594" text-anchor="middle" font-size="9" fill="#64748b">ot_logging_monitor_mgr</text>
+
+  <!-- Expert Agent 7: Security Incident -->
+  <rect x="1064" y="496" width="148" height="108" rx="8" fill="#4338ca" fill-opacity="0.8" stroke="#4338ca" stroke-width="2.5"/>
+  <rect x="1064" y="496" width="148" height="18" rx="8" fill="#4338ca"/>
+  <rect x="1064" y="506" width="148" height="8" fill="#4338ca"/>
+  <text x="1138" y="510" text-anchor="middle" font-size="9" font-weight="700" fill="#f1f5f9">EA-7</text>
+  <text x="1138" y="526" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">OT Plant Sec.</text>
+  <text x="1138" y="540" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">Incident</text>
+  <text x="1138" y="554" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">Manager</text>
+  <rect x="1074" y="562" width="128" height="16" rx="3" fill="#1e293b"/>
+  <text x="1138" y="574" text-anchor="middle" font-size="9" fill="#94a3b8">#4338ca Indigo</text>
+  <text x="1138" y="594" text-anchor="middle" font-size="9" fill="#64748b">ot_sec_incident_mgr</text>
+
+  <!-- Expert Agent 8: Analytics & Report -->
+  <rect x="1228" y="496" width="148" height="108" rx="8" fill="#0369a1" fill-opacity="0.8" stroke="#0369a1" stroke-width="2.5"/>
+  <rect x="1228" y="496" width="148" height="18" rx="8" fill="#0369a1"/>
+  <rect x="1228" y="506" width="148" height="8" fill="#0369a1"/>
+  <text x="1302" y="510" text-anchor="middle" font-size="9" font-weight="700" fill="#f1f5f9">EA-8</text>
+  <text x="1302" y="526" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">OT Plant</text>
+  <text x="1302" y="540" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">Analytics &amp;</text>
+  <text x="1302" y="554" text-anchor="middle" font-size="10" font-weight="700" fill="#e2e8f0">Report Mgr</text>
+  <rect x="1238" y="562" width="128" height="16" rx="3" fill="#1e293b"/>
+  <text x="1302" y="574" text-anchor="middle" font-size="9" fill="#94a3b8">#0369a1 Steel Blue</text>
+  <text x="1302" y="594" text-anchor="middle" font-size="9" fill="#64748b">ot_analytics_report_mgr</text>
+
+  <!-- Many-to-many label bar -->
+  <rect x="80" y="614" width="1296" height="24" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="700" y="631" text-anchor="middle" font-size="10" fill="#64748b">↕  Many-to-Many  ·  expert_sub_agent_mapping  (expert_agent_id FK ↔ sub_agent_id FK, CASCADE delete)  ↕</text>
+
+  <!-- Connectors from expert agents down to sub-agent layer -->
+  <!-- EA1 → CAG1 -->
+  <line x1="154" y1="638" x2="154" y2="780" stroke="#64748b" stroke-width="1" stroke-dasharray="4,3"/>
+  <!-- EA2 → CAG1,CAG2 -->
+  <line x1="318" y1="638" x2="280" y2="780" stroke="#64748b" stroke-width="1" stroke-dasharray="4,3"/>
+  <!-- EA3 → CAG2 -->
+  <line x1="482" y1="638" x2="460" y2="780" stroke="#64748b" stroke-width="1" stroke-dasharray="4,3"/>
+  <!-- EA4 → SAG1 -->
+  <line x1="646" y1="638" x2="646" y2="1060" stroke="#64748b" stroke-width="1" stroke-dasharray="4,3"/>
+  <!-- EA5 → SAG2 -->
+  <line x1="810" y1="638" x2="810" y2="1060" stroke="#64748b" stroke-width="1" stroke-dasharray="4,3"/>
+  <!-- EA6 → CAG3 -->
+  <line x1="974" y1="638" x2="900" y2="780" stroke="#64748b" stroke-width="1" stroke-dasharray="4,3"/>
+  <!-- EA7 → SAG3 -->
+  <line x1="1138" y1="638" x2="1138" y2="1060" stroke="#64748b" stroke-width="1" stroke-dasharray="4,3"/>
+  <!-- EA8 → SAG4 -->
+  <line x1="1302" y1="638" x2="1302" y2="1060" stroke="#64748b" stroke-width="1" stroke-dasharray="4,3"/>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LAYER 3a — CAG (Common Agent Group)                        -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <rect x="60" y="762" width="1280" height="270" rx="10" fill="#1e293b" stroke="#475569" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="80" y="783" font-size="11" font-weight="600" fill="#64748b">LAYER 3a — CAG  (Common Agent Group)  ·  Reusable horizontal specialists shared across ALL Expert Agents</text>
+
+  <!-- CAG group bounding box -->
+  <rect x="80" y="790" width="1050" height="224" rx="8" fill="#14532d" fill-opacity="0.15" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="605" y="810" text-anchor="middle" font-size="12" font-weight="700" fill="#4ade80">♻  CAG — Common Agent Group  (group_type = "CAG")</text>
+  <text x="605" y="826" text-anchor="middle" font-size="10" fill="#86efac">Horizontal capabilities reused across domains · any Expert Agent can invoke any CAG</text>
+
+  <!-- CAG 1: Data Validator -->
+  <rect x="100" y="834" width="180" height="164" rx="8" fill="#14532d" fill-opacity="0.5" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="190" y="854" text-anchor="middle" font-size="11" font-weight="700" fill="#4ade80">CAG-1</text>
+  <text x="190" y="870" text-anchor="middle" font-size="11" font-weight="600" fill="#bbf7d0">Data Validator</text>
+  <line x1="110" y1="878" x2="270" y2="878" stroke="#16a34a" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="190" y="895" text-anchor="middle" font-size="10" fill="#86efac">Validates incoming</text>
+  <text x="190" y="909" text-anchor="middle" font-size="10" fill="#86efac">data payloads against</text>
+  <text x="190" y="923" text-anchor="middle" font-size="10" fill="#86efac">domain schemas.</text>
+  <text x="190" y="942" text-anchor="middle" font-size="9" fill="#4ade80">Used by: EA-2, EA-3</text>
+  <text x="190" y="956" text-anchor="middle" font-size="9" fill="#4ade80">EA-4, EA-5, EA-8</text>
+  <rect x="115" y="968" width="150" height="20" rx="4" fill="#052e16"/>
+  <text x="190" y="982" text-anchor="middle" font-size="9" fill="#16a34a">group_type = "CAG"</text>
+
+  <!-- CAG 2: Notification Dispatcher -->
+  <rect x="300" y="834" width="180" height="164" rx="8" fill="#14532d" fill-opacity="0.5" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="390" y="854" text-anchor="middle" font-size="11" font-weight="700" fill="#4ade80">CAG-2</text>
+  <text x="390" y="870" text-anchor="middle" font-size="11" font-weight="600" fill="#bbf7d0">Notification</text>
+  <text x="390" y="884" text-anchor="middle" font-size="11" font-weight="600" fill="#bbf7d0">Dispatcher</text>
+  <line x1="310" y1="892" x2="470" y2="892" stroke="#16a34a" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="390" y="909" text-anchor="middle" font-size="10" fill="#86efac">Dispatches alerts</text>
+  <text x="390" y="923" text-anchor="middle" font-size="10" fill="#86efac">and notifications to</text>
+  <text x="390" y="937" text-anchor="middle" font-size="10" fill="#86efac">users and systems.</text>
+  <text x="390" y="956" text-anchor="middle" font-size="9" fill="#4ade80">Used by: EA-2, EA-3</text>
+  <text x="390" y="970" text-anchor="middle" font-size="9" fill="#4ade80">EA-5, EA-7, EA-8</text>
+  <rect x="315" y="968" width="150" height="20" rx="4" fill="#052e16"/>
+  <text x="390" y="982" text-anchor="middle" font-size="9" fill="#16a34a">group_type = "CAG"</text>
+
+  <!-- CAG 3: Audit Logger -->
+  <rect x="500" y="834" width="180" height="164" rx="8" fill="#14532d" fill-opacity="0.5" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="590" y="854" text-anchor="middle" font-size="11" font-weight="700" fill="#4ade80">CAG-3</text>
+  <text x="590" y="870" text-anchor="middle" font-size="11" font-weight="600" fill="#bbf7d0">Audit Logger</text>
+  <line x1="510" y1="878" x2="670" y2="878" stroke="#16a34a" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="590" y="895" text-anchor="middle" font-size="10" fill="#86efac">Writes structured</text>
+  <text x="590" y="909" text-anchor="middle" font-size="10" fill="#86efac">audit events to</text>
+  <text x="590" y="923" text-anchor="middle" font-size="10" fill="#86efac">system_logs table.</text>
+  <text x="590" y="942" text-anchor="middle" font-size="9" fill="#4ade80">Used by: ALL Expert</text>
+  <text x="590" y="956" text-anchor="middle" font-size="9" fill="#4ade80">Agents (EA-1 → EA-8)</text>
+  <rect x="515" y="968" width="150" height="20" rx="4" fill="#052e16"/>
+  <text x="590" y="982" text-anchor="middle" font-size="9" fill="#16a34a">group_type = "CAG"</text>
+
+  <!-- CAG 4: Report Generator -->
+  <rect x="700" y="834" width="180" height="164" rx="8" fill="#14532d" fill-opacity="0.5" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="790" y="854" text-anchor="middle" font-size="11" font-weight="700" fill="#4ade80">CAG-4</text>
+  <text x="790" y="870" text-anchor="middle" font-size="11" font-weight="600" fill="#bbf7d0">Report Generator</text>
+  <line x1="710" y1="878" x2="870" y2="878" stroke="#16a34a" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="790" y="895" text-anchor="middle" font-size="10" fill="#86efac">Produces structured</text>
+  <text x="790" y="909" text-anchor="middle" font-size="10" fill="#86efac">reports / exports</text>
+  <text x="790" y="923" text-anchor="middle" font-size="10" fill="#86efac">on demand.</text>
+  <text x="790" y="942" text-anchor="middle" font-size="9" fill="#4ade80">Used by: EA-3, EA-4</text>
+  <text x="790" y="956" text-anchor="middle" font-size="9" fill="#4ade80">EA-6, EA-8</text>
+  <rect x="715" y="968" width="150" height="20" rx="4" fill="#052e16"/>
+  <text x="790" y="982" text-anchor="middle" font-size="9" fill="#16a34a">group_type = "CAG"</text>
+
+  <!-- CAG 5: LLM Gateway -->
+  <rect x="900" y="834" width="180" height="164" rx="8" fill="#14532d" fill-opacity="0.5" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="990" y="854" text-anchor="middle" font-size="11" font-weight="700" fill="#4ade80">CAG-5</text>
+  <text x="990" y="870" text-anchor="middle" font-size="11" font-weight="600" fill="#bbf7d0">LLM Gateway</text>
+  <line x1="910" y1="878" x2="1070" y2="878" stroke="#16a34a" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="990" y="895" text-anchor="middle" font-size="10" fill="#86efac">Interfaces with</text>
+  <text x="990" y="909" text-anchor="middle" font-size="10" fill="#86efac">Claude / LLM APIs.</text>
+  <text x="990" y="923" text-anchor="middle" font-size="10" fill="#86efac">Tracks token usage.</text>
+  <text x="990" y="942" text-anchor="middle" font-size="9" fill="#4ade80">Used by: ALL Expert</text>
+  <text x="990" y="956" text-anchor="middle" font-size="9" fill="#4ade80">Agents (EA-1 → EA-8)</text>
+  <rect x="915" y="968" width="150" height="20" rx="4" fill="#052e16"/>
+  <text x="990" y="982" text-anchor="middle" font-size="9" fill="#16a34a">group_type = "CAG"</text>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LAYER 3b — SAG (Specialized Agent Group)                   -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <rect x="60" y="1046" width="1280" height="290" rx="10" fill="#1e293b" stroke="#475569" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="80" y="1067" font-size="11" font-weight="600" fill="#64748b">LAYER 3b — SAG  (Specialized Agent Group)  ·  Domain-specific specialists, each bound to ONE Expert Agent</text>
+
+  <!-- SAG group bounding box -->
+  <rect x="80" y="1074" width="1296" height="244" rx="8" fill="#1e1b4b" fill-opacity="0.3" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="728" y="1094" text-anchor="middle" font-size="12" font-weight="700" fill="#a78bfa">🎯  SAG — Specialized Agent Group  (group_type = "SAG")</text>
+  <text x="728" y="1110" text-anchor="middle" font-size="10" fill="#c4b5fd">Domain-exclusive specialists · tuned for a single Expert Agent's functional domain</text>
+
+  <!-- SAG 1: Risk Scoring Engine (EA-4) -->
+  <rect x="100" y="1118" width="190" height="180" rx="8" fill="#1e1b4b" fill-opacity="0.6" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="195" y="1138" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa">SAG-1</text>
+  <text x="195" y="1154" text-anchor="middle" font-size="11" font-weight="600" fill="#ddd6fe">Risk Scoring</text>
+  <text x="195" y="1168" text-anchor="middle" font-size="11" font-weight="600" fill="#ddd6fe">Engine</text>
+  <line x1="110" y1="1176" x2="280" y2="1176" stroke="#7c3aed" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="195" y="1193" text-anchor="middle" font-size="10" fill="#c4b5fd">Calculates risk</text>
+  <text x="195" y="1207" text-anchor="middle" font-size="10" fill="#c4b5fd">scores for OT assets</text>
+  <text x="195" y="1221" text-anchor="middle" font-size="10" fill="#c4b5fd">using domain rules.</text>
+  <rect x="115" y="1234" width="160" height="20" rx="4" fill="#0f0a2e"/>
+  <text x="195" y="1248" text-anchor="middle" font-size="9" fill="#7c3aed">Exclusive to: EA-4</text>
+  <rect x="115" y="1258" width="160" height="20" rx="4" fill="#0f0a2e"/>
+  <text x="195" y="1272" text-anchor="middle" font-size="9" fill="#6d28d9">group_type = "SAG"</text>
+
+  <!-- SAG 2: Change Approver (EA-5) -->
+  <rect x="310" y="1118" width="190" height="180" rx="8" fill="#1e1b4b" fill-opacity="0.6" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="405" y="1138" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa">SAG-2</text>
+  <text x="405" y="1154" text-anchor="middle" font-size="11" font-weight="600" fill="#ddd6fe">Change</text>
+  <text x="405" y="1168" text-anchor="middle" font-size="11" font-weight="600" fill="#ddd6fe">Approver</text>
+  <line x1="320" y1="1176" x2="490" y2="1176" stroke="#7c3aed" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="405" y="1193" text-anchor="middle" font-size="10" fill="#c4b5fd">Evaluates and</text>
+  <text x="405" y="1207" text-anchor="middle" font-size="10" fill="#c4b5fd">routes OT plant</text>
+  <text x="405" y="1221" text-anchor="middle" font-size="10" fill="#c4b5fd">change requests.</text>
+  <rect x="325" y="1234" width="160" height="20" rx="4" fill="#0f0a2e"/>
+  <text x="405" y="1248" text-anchor="middle" font-size="9" fill="#7c3aed">Exclusive to: EA-5</text>
+  <rect x="325" y="1258" width="160" height="20" rx="4" fill="#0f0a2e"/>
+  <text x="405" y="1272" text-anchor="middle" font-size="9" fill="#6d28d9">group_type = "SAG"</text>
+
+  <!-- SAG 3: Incident Classifier (EA-7) -->
+  <rect x="520" y="1118" width="190" height="180" rx="8" fill="#1e1b4b" fill-opacity="0.6" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="615" y="1138" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa">SAG-3</text>
+  <text x="615" y="1154" text-anchor="middle" font-size="11" font-weight="600" fill="#ddd6fe">Incident</text>
+  <text x="615" y="1168" text-anchor="middle" font-size="11" font-weight="600" fill="#ddd6fe">Classifier</text>
+  <line x1="530" y1="1176" x2="700" y2="1176" stroke="#7c3aed" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="615" y="1193" text-anchor="middle" font-size="10" fill="#c4b5fd">Classifies security</text>
+  <text x="615" y="1207" text-anchor="middle" font-size="10" fill="#c4b5fd">incidents by type</text>
+  <text x="615" y="1221" text-anchor="middle" font-size="10" fill="#c4b5fd">severity and impact.</text>
+  <rect x="535" y="1234" width="160" height="20" rx="4" fill="#0f0a2e"/>
+  <text x="615" y="1248" text-anchor="middle" font-size="9" fill="#7c3aed">Exclusive to: EA-7</text>
+  <rect x="535" y="1258" width="160" height="20" rx="4" fill="#0f0a2e"/>
+  <text x="615" y="1272" text-anchor="middle" font-size="9" fill="#6d28d9">group_type = "SAG"</text>
+
+  <!-- SAG 4: Analytics Engine (EA-8) -->
+  <rect x="730" y="1118" width="190" height="180" rx="8" fill="#1e1b4b" fill-opacity="0.6" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="825" y="1138" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa">SAG-4</text>
+  <text x="825" y="1154" text-anchor="middle" font-size="11" font-weight="600" fill="#ddd6fe">Analytics</text>
+  <text x="825" y="1168" text-anchor="middle" font-size="11" font-weight="600" fill="#ddd6fe">Engine</text>
+  <line x1="740" y1="1176" x2="910" y2="1176" stroke="#7c3aed" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="825" y="1193" text-anchor="middle" font-size="10" fill="#c4b5fd">Runs statistical</text>
+  <text x="825" y="1207" text-anchor="middle" font-size="10" fill="#c4b5fd">models and trend</text>
+  <text x="825" y="1221" text-anchor="middle" font-size="10" fill="#c4b5fd">analysis on OT data.</text>
+  <rect x="745" y="1234" width="160" height="20" rx="4" fill="#0f0a2e"/>
+  <text x="825" y="1248" text-anchor="middle" font-size="9" fill="#7c3aed">Exclusive to: EA-8</text>
+  <rect x="745" y="1258" width="160" height="20" rx="4" fill="#0f0a2e"/>
+  <text x="825" y="1272" text-anchor="middle" font-size="9" fill="#6d28d9">group_type = "SAG"</text>
+
+  <!-- SAG 5: Asset Health Monitor (EA-3) -->
+  <rect x="940" y="1118" width="190" height="180" rx="8" fill="#1e1b4b" fill-opacity="0.6" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="1035" y="1138" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa">SAG-5</text>
+  <text x="1035" y="1154" text-anchor="middle" font-size="11" font-weight="600" fill="#ddd6fe">Asset Health</text>
+  <text x="1035" y="1168" text-anchor="middle" font-size="11" font-weight="600" fill="#ddd6fe">Monitor</text>
+  <line x1="950" y1="1176" x2="1120" y2="1176" stroke="#7c3aed" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="1035" y="1193" text-anchor="middle" font-size="10" fill="#c4b5fd">Tracks OT asset</text>
+  <text x="1035" y="1207" text-anchor="middle" font-size="10" fill="#c4b5fd">condition and raises</text>
+  <text x="1035" y="1221" text-anchor="middle" font-size="10" fill="#c4b5fd">health alerts.</text>
+  <rect x="955" y="1234" width="160" height="20" rx="4" fill="#0f0a2e"/>
+  <text x="1035" y="1248" text-anchor="middle" font-size="9" fill="#7c3aed">Exclusive to: EA-3</text>
+  <rect x="955" y="1258" width="160" height="20" rx="4" fill="#0f0a2e"/>
+  <text x="1035" y="1272" text-anchor="middle" font-size="9" fill="#6d28d9">group_type = "SAG"</text>
+
+  <!-- SAG 6: Colour Theme Advisor (EA-1) -->
+  <rect x="1150" y="1118" width="190" height="180" rx="8" fill="#1e1b4b" fill-opacity="0.6" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="1245" y="1138" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa">SAG-6</text>
+  <text x="1245" y="1154" text-anchor="middle" font-size="11" font-weight="600" fill="#ddd6fe">Colour Theme</text>
+  <text x="1245" y="1168" text-anchor="middle" font-size="11" font-weight="600" fill="#ddd6fe">Advisor</text>
+  <line x1="1160" y1="1176" x2="1330" y2="1176" stroke="#7c3aed" stroke-width="0.8" stroke-opacity="0.5"/>
+  <text x="1245" y="1193" text-anchor="middle" font-size="10" fill="#c4b5fd">Recommends and</text>
+  <text x="1245" y="1207" text-anchor="middle" font-size="10" fill="#c4b5fd">validates UI colour</text>
+  <text x="1245" y="1221" text-anchor="middle" font-size="10" fill="#c4b5fd">palette selections.</text>
+  <rect x="1165" y="1234" width="160" height="20" rx="4" fill="#0f0a2e"/>
+  <text x="1245" y="1248" text-anchor="middle" font-size="9" fill="#7c3aed">Exclusive to: EA-1</text>
+  <rect x="1165" y="1258" width="160" height="20" rx="4" fill="#0f0a2e"/>
+  <text x="1245" y="1272" text-anchor="middle" font-size="9" fill="#6d28d9">group_type = "SAG"</text>
+
+  <!-- Arrow down from Sub-Agents to Interaction Ledger -->
+  <line x1="700" y1="1336" x2="700" y2="1376" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrowAmber)"/>
+  <text x="716" y="1360" font-size="10" fill="#f59e0b">Records every Expert ↔ Sub-Agent call</text>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LAYER 4 — INTERACTION LEDGER                               -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <rect x="60" y="1378" width="1280" height="200" rx="10" fill="#1e293b" stroke="#475569" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="80" y="1399" font-size="11" font-weight="600" fill="#64748b">LAYER 4 — INTERACTION LEDGER  ·  app/models/agent.py → AgentInteraction  ·  Table: agent_interactions</text>
+
+  <rect x="200" y="1408" width="1000" height="148" rx="8" fill="#431407" fill-opacity="0.4" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="700" y="1428" text-anchor="middle" font-size="13" font-weight="700" fill="#fcd34d">📋  AgentInteraction — Full Audit Trail of Every Expert ↔ Sub-Agent Exchange</text>
+
+  <!-- Field pills row 1 -->
+  <rect x="230" y="1438" width="175" height="28" rx="5" fill="#292524" stroke="#f59e0b" stroke-width="1"/>
+  <text x="317" y="1457" text-anchor="middle" font-size="10" fill="#fcd34d">expert_agent_id  →  FK</text>
+
+  <rect x="420" y="1438" width="155" height="28" rx="5" fill="#292524" stroke="#f59e0b" stroke-width="1"/>
+  <text x="497" y="1457" text-anchor="middle" font-size="10" fill="#fcd34d">sub_agent_id  →  FK</text>
+
+  <rect x="590" y="1438" width="155" height="28" rx="5" fill="#292524" stroke="#f59e0b" stroke-width="1"/>
+  <text x="667" y="1457" text-anchor="middle" font-size="10" fill="#fcd34d">input_prompt  →  Text</text>
+
+  <rect x="760" y="1438" width="175" height="28" rx="5" fill="#292524" stroke="#f59e0b" stroke-width="1"/>
+  <text x="847" y="1457" text-anchor="middle" font-size="10" fill="#fcd34d">output_response  →  Text</text>
+
+  <rect x="950" y="1438" width="220" height="28" rx="5" fill="#292524" stroke="#f59e0b" stroke-width="1"/>
+  <text x="1060" y="1457" text-anchor="middle" font-size="10" fill="#fcd34d">created_at  →  DateTime (UTC)</text>
+
+  <!-- Field pills row 2 -->
+  <rect x="280" y="1478" width="155" height="28" rx="5" fill="#292524" stroke="#d97706" stroke-width="1"/>
+  <text x="357" y="1497" text-anchor="middle" font-size="10" fill="#fbbf24">duration_ms  →  Integer</text>
+
+  <rect x="450" y="1478" width="175" height="28" rx="5" fill="#292524" stroke="#d97706" stroke-width="1"/>
+  <text x="537" y="1497" text-anchor="middle" font-size="10" fill="#fbbf24">input_tokens  →  Integer</text>
+
+  <rect x="640" y="1478" width="185" height="28" rx="5" fill="#292524" stroke="#d97706" stroke-width="1"/>
+  <text x="732" y="1497" text-anchor="middle" font-size="10" fill="#fbbf24">output_tokens  →  Integer</text>
+
+  <!-- Purpose note -->
+  <text x="700" y="1536" text-anchor="middle" font-size="10" fill="#92400e">Observability · LLM cost attribution (token tracking) · Performance tuning (duration_ms) · Future model fine-tuning data</text>
+
+  <!-- Arrow down to System Log -->
+  <line x1="700" y1="1578" x2="700" y2="1610" stroke="#ef4444" stroke-width="2" marker-end="url(#arrowRed)"/>
+  <text x="716" y="1598" font-size="10" fill="#ef4444">All system events written here</text>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LAYER 5 — SYSTEM LOG                                       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <rect x="60" y="1612" width="1280" height="180" rx="10" fill="#1e293b" stroke="#475569" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="80" y="1633" font-size="11" font-weight="600" fill="#64748b">LAYER 5 — SYSTEM LOG  ·  app/models/log.py → SystemLog  ·  Table: system_logs</text>
+
+  <rect x="200" y="1642" width="1000" height="132" rx="8" fill="#450a0a" fill-opacity="0.4" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="700" y="1662" text-anchor="middle" font-size="13" font-weight="700" fill="#fca5a5">🪵  SystemLog — Operational Event Bus for All System Activity</text>
+
+  <!-- Level badges -->
+  <rect x="230" y="1672" width="80" height="24" rx="12" fill="#166534"/>
+  <text x="270" y="1689" text-anchor="middle" font-size="10" font-weight="700" fill="#4ade80">INFO</text>
+
+  <rect x="326" y="1672" width="80" height="24" rx="12" fill="#1e3a8a"/>
+  <text x="366" y="1689" text-anchor="middle" font-size="10" font-weight="700" fill="#93c5fd">DEBUG</text>
+
+  <rect x="422" y="1672" width="90" height="24" rx="12" fill="#854d0e"/>
+  <text x="467" y="1689" text-anchor="middle" font-size="10" font-weight="700" fill="#fcd34d">WARNING</text>
+
+  <rect x="528" y="1672" width="80" height="24" rx="12" fill="#7f1d1d"/>
+  <text x="568" y="1689" text-anchor="middle" font-size="10" font-weight="700" fill="#fca5a5">ERROR</text>
+
+  <rect x="624" y="1672" width="90" height="24" rx="12" fill="#14532d"/>
+  <text x="669" y="1689" text-anchor="middle" font-size="10" font-weight="700" fill="#86efac">SUCCESS</text>
+
+  <!-- Schema fields -->
+  <text x="800" y="1689" font-size="10" fill="#94a3b8">Fields:  id · created_at · level · source · message · metadata_json</text>
+
+  <!-- Enforcement note -->
+  <rect x="230" y="1704" width="940" height="24" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="700" y="1721" text-anchor="middle" font-size="10" fill="#64748b">Level enforced by: Pydantic Literal type (schema layer)  +  SQL CheckConstraint (database layer) — invalid levels rejected at both layers</text>
+
+  <!-- Sources note -->
+  <text x="700" y="1754" text-anchor="middle" font-size="10" fill="#6b7280">Sources: "USER" (agent selections)  ·  "SYSTEM" (seeding, startup)  ·  "API" (route events)  ·  ordered DESC newest-first  ·  max 500/request</text>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LEGEND                                                     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <rect x="60" y="1780" width="1280" height="26" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <rect x="80" y="1789" width="12" height="8" rx="2" fill="#16a34a"/>
+  <text x="98" y="1798" font-size="10" fill="#94a3b8">CAG = Common Agent Group (shared, reusable)</text>
+  <rect x="330" y="1789" width="12" height="8" rx="2" fill="#7c3aed"/>
+  <text x="348" y="1798" font-size="10" fill="#94a3b8">SAG = Specialized Agent Group (domain-exclusive)</text>
+  <rect x="620" y="1789" width="12" height="8" rx="2" fill="#3b82f6"/>
+  <text x="638" y="1798" font-size="10" fill="#94a3b8">Expert Agent (Orchestrator / MOE Gating Node)</text>
+  <rect x="900" y="1789" width="12" height="8" rx="2" fill="#f59e0b"/>
+  <text x="918" y="1798" font-size="10" fill="#94a3b8">Interaction Ledger (Audit + Token Tracking)</text>
+  <rect x="1160" y="1789" width="12" height="8" rx="2" fill="#ef4444"/>
+  <text x="1178" y="1798" font-size="10" fill="#94a3b8">System Log (Event Bus)</text>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- ARROW MARKERS                                              -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <defs>
+    <marker id="arrowBlue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#0ea5e9"/>
+    </marker>
+    <marker id="arrowMedBlue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrowAmber" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrowRed" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#ef4444"/>
+    </marker>
+  </defs>
+
+</svg>
