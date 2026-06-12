@@ -40,7 +40,7 @@ export const Banner: React.FC = () => {
           fontWeight: 'bold',
           fontSize: '14px'
         }}>D</div>
-        <span style={{ fontWeight: 800, fontSize: '18px', letterSpacing: '0.5px' }}>
+        <span style={{ fontWeight: 800, fontSize: '27px', letterSpacing: '0.5px' }}>
           <span style={{ color: '#00f0ff' }}>CDAGS</span> AI-Agents: OT-IT Convergence & Cybersecurity
         </span>
       </div>

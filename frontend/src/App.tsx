@@ -17,7 +17,7 @@ const DashboardShell: React.FC = () => {
         <Banner />
         <Sidebar />
         <main className="main-content">
-          <h2 style={{ marginBottom: '24px', fontWeight: 600 }}>OT Env. Operational Functions as AI-Agents</h2>
+          <h2 style={{ marginBottom: '24px', fontWeight: 600 }}><span style={{ color: '#00f0ff' }}>AI-Agents</span>:  OT Operational Functions</h2>
           <AgentGrid />
         </main>
         <LogPanel />
