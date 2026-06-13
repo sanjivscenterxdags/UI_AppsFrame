@@ -229,6 +229,7 @@ Now we will create the backend schemas (Pydantic validation), API endpoints, and
 ### Step 3.1: Create Pydantic Schemas
 Pydantic schemas validate the data coming *into* the API and structure the JSON data returning *out* of the API.
 Create `backend/app/schemas/agent.py`:
+
 ```python
 from pydantic import BaseModel, Field
 from datetime import datetime

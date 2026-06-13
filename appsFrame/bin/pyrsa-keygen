@@ -1,0 +1,6 @@
+#!/Users/sanjivsingh/pydev16/max001/DdgizApps/appsFrame/appsFrame/bin/python3
+import sys
+from rsa.cli import keygen
+if __name__ == '__main__':
+    sys.argv[0] = sys.argv[0].removesuffix('.exe')
+    sys.exit(keygen())

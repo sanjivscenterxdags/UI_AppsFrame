@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1060" viewBox="0 0 1400 1060" font-family="Segoe UI, Arial, sans-serif">
+
+  <!-- BACKGROUND -->
+  <rect width="1400" height="1060" fill="#0f172a"/>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrowAmber" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 z" fill="#f59e0b"/>
+    </marker>
+  </defs>
+
+  <!-- TITLE BLOCK -->
+  <rect x="60" y="24" width="1280" height="72" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+  <text x="700" y="54" text-anchor="middle" font-size="21" font-weight="700" fill="#f1f5f9">CDAGS — Layer 6: Ecosystem Tool Integration</text>
+  <text x="700" y="78" text-anchor="middle" font-size="13" fill="#94a3b8">Tool Connector Gateway (MCP-style) bridging Sub-Agents (L3) to external OT/IT systems</text>
+
+  <!-- ════════ LEFT COLUMN: EXISTING CDAGS STACK (compressed) ════════ -->
+  <text x="240" y="132" text-anchor="middle" font-size="12" font-weight="700" fill="#64748b" letter-spacing="2">EXISTING CDAGS STACK</text>
+
+  <rect x="80" y="148" width="320" height="86" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+  <text x="240" y="180" text-anchor="middle" font-size="14" font-weight="700" fill="#f1f5f9">L1 — FastAPI API Gateway</text>
+  <text x="240" y="202" text-anchor="middle" font-size="11" fill="#94a3b8">JWT auth · /api/chat single entry point</text>
+  <text x="240" y="219" text-anchor="middle" font-size="11" fill="#94a3b8">token claims carry AD groups ↓</text>
+
+  <line x1="240" y1="234" x2="240" y2="262" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <rect x="80" y="264" width="320" height="100" rx="8" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+  <text x="240" y="292" text-anchor="middle" font-size="14" font-weight="700" fill="#f1f5f9">L2 — MOE Gating + Expert Agents</text>
+  <text x="240" y="313" text-anchor="middle" font-size="11" fill="#94a3b8">EA-1 … EA-8 (domain orchestrators)</text>
+  <text x="240" y="330" text-anchor="middle" font-size="11" fill="#94a3b8">routing_decisions audit table</text>
+  <text x="240" y="349" text-anchor="middle" font-size="11" fill="#64748b">experts own their workflow DAGs</text>
+
+  <line x1="240" y1="364" x2="240" y2="392" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <rect x="80" y="394" width="320" height="118" rx="8" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+  <text x="240" y="422" text-anchor="middle" font-size="14" font-weight="700" fill="#f1f5f9">L3 — Sub-Agents (CAG + SAG)</text>
+  <text x="240" y="443" text-anchor="middle" font-size="11" fill="#94a3b8">CAG-1…5 shared · SAG-1…6 domain-bound</text>
+  <text x="240" y="462" text-anchor="middle" font-size="11" fill="#94a3b8">sub-agents NEVER call tools directly —</text>
+  <text x="240" y="479" text-anchor="middle" font-size="11" fill="#94a3b8">they invoke typed connectors in L6 →</text>
+  <text x="240" y="499" text-anchor="middle" font-size="11" fill="#64748b">all calls logged to L4 agent_interactions</text>
+
+  <rect x="80" y="540" width="320" height="64" rx="8" fill="#16202f" stroke="#334155" stroke-width="1"/>
+  <text x="240" y="566" text-anchor="middle" font-size="12" font-weight="700" fill="#94a3b8">L4 / L5 — Ledger + SystemLog</text>
+  <text x="240" y="586" text-anchor="middle" font-size="10.5" fill="#64748b">every connector call mirrored here (audit)</text>
+  <line x1="240" y1="512" x2="240" y2="538" stroke="#475569" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#arrow)"/>
+
+  <!-- L3 -> Gateway arrow -->
+  <line x1="400" y1="453" x2="510" y2="453" stroke="#64748b" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="455" y="443" text-anchor="middle" font-size="10.5" fill="#94a3b8">typed tool calls</text>
+
+  <!-- ════════ MIDDLE COLUMN: TOOL CONNECTOR GATEWAY ════════ -->
+  <text x="690" y="132" text-anchor="middle" font-size="12" font-weight="700" fill="#64748b" letter-spacing="2">LAYER 6 — TOOL CONNECTOR GATEWAY</text>
+
+  <rect x="520" y="148" width="340" height="760" rx="10" fill="#111c2e" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="690" y="178" text-anchor="middle" font-size="15" font-weight="700" fill="#f1f5f9">🔌 Tool Connector Gateway</text>
+  <text x="690" y="198" text-anchor="middle" font-size="11" fill="#94a3b8">one typed connector per tool · MCP-style contracts</text>
+
+  <!-- connector cards -->
+  <rect x="540" y="214" width="300" height="78" rx="6" fill="#1e293b" stroke="#7c3aed" stroke-width="1.2"/>
+  <text x="690" y="236" text-anchor="middle" font-size="12.5" font-weight="700" fill="#e9d5ff">ITSM Connector</text>
+  <text x="690" y="254" text-anchor="middle" font-size="10.5" fill="#94a3b8">create / update / query tickets</text>
+  <text x="690" y="270" text-anchor="middle" font-size="10.5" fill="#94a3b8">write-tier → requires HITL approval token</text>
+  <text x="690" y="285" text-anchor="middle" font-size="10" fill="#64748b">used by: EA-5, EA-7 · CAG-2</text>
+
+  <rect x="540" y="300" width="300" height="70" rx="6" fill="#1e293b" stroke="#0f766e" stroke-width="1.2"/>
+  <text x="690" y="322" text-anchor="middle" font-size="12.5" font-weight="700" fill="#99f6e4">ITAM / CMDB Connector</text>
+  <text x="690" y="340" text-anchor="middle" font-size="10.5" fill="#94a3b8">asset lookup · reconciliation · read-mostly</text>
+  <text x="690" y="356" text-anchor="middle" font-size="10" fill="#64748b">used by: EA-3 · SAG-5 · CAG-1</text>
+
+  <rect x="540" y="378" width="300" height="70" rx="6" fill="#1e293b" stroke="#b45309" stroke-width="1.2"/>
+  <text x="690" y="400" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fcd34d">Syslog Ingest Connector</text>
+  <text x="690" y="418" text-anchor="middle" font-size="10.5" fill="#94a3b8">RFC 5424 listener → parse → normalize</text>
+  <text x="690" y="434" text-anchor="middle" font-size="10" fill="#64748b">used by: EA-6, EA-7 · read-only inbound</text>
+
+  <rect x="540" y="456" width="300" height="70" rx="6" fill="#1e293b" stroke="#0369a1" stroke-width="1.2"/>
+  <text x="690" y="478" text-anchor="middle" font-size="12.5" font-weight="700" fill="#7dd3fc">Kafka Client Connector</text>
+  <text x="690" y="496" text-anchor="middle" font-size="10.5" fill="#94a3b8">consume OT telemetry topics · produce events</text>
+  <text x="690" y="512" text-anchor="middle" font-size="10" fill="#64748b">used by: EA-2, EA-6, EA-8 · CAG-2</text>
+
+  <rect x="540" y="534" width="300" height="70" rx="6" fill="#1e293b" stroke="#15803d" stroke-width="1.2"/>
+  <text x="690" y="556" text-anchor="middle" font-size="12.5" font-weight="700" fill="#86efac">Flink Jobs Connector</text>
+  <text x="690" y="574" text-anchor="middle" font-size="10.5" fill="#94a3b8">submit / monitor stream jobs · query results</text>
+  <text x="690" y="590" text-anchor="middle" font-size="10" fill="#64748b">used by: EA-8 · SAG-4 Analytics Engine</text>
+
+  <rect x="540" y="612" width="300" height="70" rx="6" fill="#1e293b" stroke="#4338ca" stroke-width="1.2"/>
+  <text x="690" y="634" text-anchor="middle" font-size="12.5" font-weight="700" fill="#c7d2fe">IdM / LDAP Connector</text>
+  <text x="690" y="652" text-anchor="middle" font-size="10.5" fill="#94a3b8">group lookup · authz checks · NO writes</text>
+  <text x="690" y="668" text-anchor="middle" font-size="10" fill="#64748b">used by: L1 gateway + all write-tier checks</text>
+
+  <rect x="540" y="690" width="300" height="70" rx="6" fill="#1e293b" stroke="#991b1b" stroke-width="1.2"/>
+  <text x="690" y="712" text-anchor="middle" font-size="12.5" font-weight="700" fill="#fca5a5">Data Source Connectors</text>
+  <text x="690" y="730" text-anchor="middle" font-size="10.5" fill="#94a3b8">Historian · SQL · REST pulls · read-only</text>
+  <text x="690" y="746" text-anchor="middle" font-size="10" fill="#64748b">used by: EA-2, EA-4, EA-8</text>
+
+  <!-- cross-cutting strip -->
+  <rect x="540" y="772" width="300" height="118" rx="6" fill="#16202f" stroke="#334155" stroke-width="1"/>
+  <text x="690" y="794" text-anchor="middle" font-size="11.5" font-weight="700" fill="#f1f5f9">Cross-cutting (every connector)</text>
+  <text x="690" y="814" text-anchor="middle" font-size="10.5" fill="#94a3b8">secrets vault (no creds in agents) · mTLS</text>
+  <text x="690" y="831" text-anchor="middle" font-size="10.5" fill="#94a3b8">circuit breaker · retry + backoff · timeouts</text>
+  <text x="690" y="848" text-anchor="middle" font-size="10.5" fill="#94a3b8">rate limits · idempotency keys on writes</text>
+  <text x="690" y="865" text-anchor="middle" font-size="10.5" fill="#94a3b8">Pydantic I/O schemas · read-only by default</text>
+  <text x="690" y="882" text-anchor="middle" font-size="10.5" fill="#94a3b8">every call → agent_interactions + system_logs</text>
+
+  <!-- ════════ RIGHT COLUMN: ECOSYSTEM TOOLS ════════ -->
+  <text x="1130" y="132" text-anchor="middle" font-size="12" font-weight="700" fill="#64748b" letter-spacing="2">EXTERNAL ECOSYSTEM (IT / OT DMZ)</text>
+
+  <rect x="960" y="214" width="340" height="78" rx="8" fill="#1e293b" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="1130" y="240" text-anchor="middle" font-size="13.5" font-weight="700" fill="#f1f5f9">🎫 Trouble Ticketing / ITSM</text>
+  <text x="1130" y="260" text-anchor="middle" font-size="10.5" fill="#94a3b8">ServiceNow · Jira SM · BMC</text>
+  <text x="1130" y="277" text-anchor="middle" font-size="10.5" fill="#94a3b8">REST/JSON · OAuth2 service account</text>
+
+  <rect x="960" y="300" width="340" height="70" rx="8" fill="#1e293b" stroke="#0f766e" stroke-width="1.5"/>
+  <text x="1130" y="326" text-anchor="middle" font-size="13.5" font-weight="700" fill="#f1f5f9">🗃 Inventory / Asset Mgmt (ITAM)</text>
+  <text x="1130" y="346" text-anchor="middle" font-size="10.5" fill="#94a3b8">CMDB · OT asset inventory</text>
+  <text x="1130" y="362" text-anchor="middle" font-size="10.5" fill="#94a3b8">REST / GraphQL API · SQL read replica</text>
+
+  <rect x="960" y="378" width="340" height="70" rx="8" fill="#1e293b" stroke="#b45309" stroke-width="1.5"/>
+  <text x="1130" y="404" text-anchor="middle" font-size="13.5" font-weight="700" fill="#f1f5f9">🪵 SYSLOG Server</text>
+  <text x="1130" y="424" text-anchor="middle" font-size="10.5" fill="#94a3b8">plant network + device logs</text>
+  <text x="1130" y="440" text-anchor="middle" font-size="10.5" fill="#94a3b8">RFC 5424 · TLS/TCP 6514 (UDP 514 legacy)</text>
+
+  <rect x="960" y="456" width="340" height="70" rx="8" fill="#1e293b" stroke="#0369a1" stroke-width="1.5"/>
+  <text x="1130" y="482" text-anchor="middle" font-size="13.5" font-weight="700" fill="#f1f5f9">📨 Kafka Cluster</text>
+  <text x="1130" y="502" text-anchor="middle" font-size="10.5" fill="#94a3b8">OT telemetry · event topics · DLQ</text>
+  <text x="1130" y="518" text-anchor="middle" font-size="10.5" fill="#94a3b8">TLS + SASL/SCRAM · schema registry (Avro)</text>
+
+  <rect x="960" y="534" width="340" height="70" rx="8" fill="#1e293b" stroke="#15803d" stroke-width="1.5"/>
+  <text x="1130" y="560" text-anchor="middle" font-size="13.5" font-weight="700" fill="#f1f5f9">🌊 Flink Stream Processing</text>
+  <text x="1130" y="580" text-anchor="middle" font-size="10.5" fill="#94a3b8">anomaly detection · windowed aggregates</text>
+  <text x="1130" y="596" text-anchor="middle" font-size="10.5" fill="#94a3b8">REST job API · reads/writes Kafka topics</text>
+
+  <rect x="960" y="612" width="340" height="70" rx="8" fill="#1e293b" stroke="#4338ca" stroke-width="1.5"/>
+  <text x="1130" y="638" text-anchor="middle" font-size="13.5" font-weight="700" fill="#f1f5f9">🛡 Active Directory / IdM</text>
+  <text x="1130" y="658" text-anchor="middle" font-size="10.5" fill="#94a3b8">users · groups · service accounts</text>
+  <text x="1130" y="674" text-anchor="middle" font-size="10.5" fill="#94a3b8">LDAPS 636 · Kerberos / SAML / OIDC</text>
+
+  <rect x="960" y="690" width="340" height="70" rx="8" fill="#1e293b" stroke="#991b1b" stroke-width="1.5"/>
+  <text x="1130" y="716" text-anchor="middle" font-size="13.5" font-weight="700" fill="#f1f5f9">🏭 Other Data Sources</text>
+  <text x="1130" y="736" text-anchor="middle" font-size="10.5" fill="#94a3b8">Historian (PI/OPC-UA) · MES · SQL DBs</text>
+  <text x="1130" y="752" text-anchor="middle" font-size="10.5" fill="#94a3b8">read-only replicas · ODBC / REST</text>
+
+  <!-- ════════ CONNECTOR ↔ TOOL ARROWS ════════ -->
+  <!-- ITSM: bidirectional, write flagged -->
+  <line x1="840" y1="253" x2="958" y2="253" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrowAmber)"/>
+  <line x1="958" y1="265" x2="842" y2="265" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="899" y="244" text-anchor="middle" font-size="9.5" fill="#f59e0b">write (HITL)</text>
+
+  <!-- ITAM: mostly read -->
+  <line x1="958" y1="335" x2="842" y2="335" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="899" y="326" text-anchor="middle" font-size="9.5" fill="#94a3b8">read</text>
+
+  <!-- Syslog: inbound only -->
+  <line x1="958" y1="413" x2="842" y2="413" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="899" y="404" text-anchor="middle" font-size="9.5" fill="#94a3b8">ingest →</text>
+
+  <!-- Kafka: bidirectional -->
+  <line x1="840" y1="485" x2="958" y2="485" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="958" y1="500" x2="842" y2="500" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="899" y="476" text-anchor="middle" font-size="9.5" fill="#94a3b8">produce / consume</text>
+
+  <!-- Flink -->
+  <line x1="840" y1="563" x2="958" y2="563" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="958" y1="578" x2="842" y2="578" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="899" y="554" text-anchor="middle" font-size="9.5" fill="#94a3b8">submit / results</text>
+
+  <!-- IdM: read only -->
+  <line x1="958" y1="647" x2="842" y2="647" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="899" y="638" text-anchor="middle" font-size="9.5" fill="#94a3b8">authz lookup</text>
+
+  <!-- Data sources: read only -->
+  <line x1="958" y1="725" x2="842" y2="725" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="899" y="716" text-anchor="middle" font-size="9.5" fill="#94a3b8">read-only pull</text>
+
+  <!-- IdM also feeds L1 directly (dashed) -->
+  <path d="M 960 680 C 700 960, 240 940, 240 608" fill="none" stroke="#4338ca" stroke-width="1.5" stroke-dasharray="5 5" marker-end="url(#arrow)"/>
+  <text x="610" y="950" text-anchor="middle" font-size="10" fill="#818cf8">AD also backs L1 login (OIDC/SAML) — dashed</text>
+
+  <!-- ════════ LEGEND ════════ -->
+  <rect x="60" y="980" width="1280" height="56" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="90" y="1003" font-size="11" fill="#94a3b8">→ grey = read / inbound data flow</text>
+  <text x="90" y="1022" font-size="11" fill="#f59e0b">→ amber = write action: requires risk-tier check + human-in-the-loop approval token</text>
+  <text x="760" y="1003" font-size="11" fill="#94a3b8">All connector traffic crosses the IT/OT DMZ — no agent holds tool credentials directly</text>
+  <text x="760" y="1022" font-size="11" fill="#64748b">Layer 6 sits beside L3; L4/L5 remain the single audit + event sink for every connector call</text>
+</svg>

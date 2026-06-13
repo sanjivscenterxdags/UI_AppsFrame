@@ -1,127 +1,60 @@
 """
-SQLAlchemy models representing Expert AI Agents, Sub-Agents, their interactions AND relationships. 
-This includes the Agent, SubAgent, and AgentInteraction models, along with their relationships and constraints.
-    
+June 10, 2026
+
 """
-from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Table, ForeignKey, Text
-from sqlalchemy.orm import relationship
-from datetime import datetime   
-from app.database import Base
+from pydantic import BaseModel, Field
+from typing import Optional, List
+from datetime import datetime
 
-# -----------------------------------------------------------------------------------------------------
-# Step 1: Association table mapping Expert Agents to Specific Sub-Agents 
-# for the many-to-many relationship between Expert-Agent and Sub-Agent
-# One Expert Agent can have multiple Sub-Agents, and one Sub-Agent can belong to multiple Expert Agents.
-# -----------------------------------------------------------------------------------------------------
-
-expert_sub_gent_association = Table(
-    'expert_sub_agent_mapping',
-    Base.metadata,
-    Column('expert_agent_id', 
-           Integer, 
-           ForeignKey('expert_agents.id', ondelete='CASCADE'), primary_key=True),     
-    Column('sub_agent_id', 
-           Integer, 
-           ForeignKey('sub_agents.id', ondelete='CASCADE'), primary_key=True)
-    )
-    
-# -----------------------------------------------------------------------------------------------------
-# Step 2: Define the ExpertAgent model representing the main AI agents with their attributes and relationships
-# -----------------------------------------------------------------------------------------------------
-class ExpertAgent(Base):
+class SubAgentResponse(BaseModel):
     """
-    Represets an Expert AI Agent in a particular functional domain. 
-
-    Each Expert Agent can have multiple Sub-Agents that specialize in specific tasks 
-        within the domain.
-
-    The model includes attributes for the agent's name, description, timestamps, and a 
-        relationship to its Sub-Agents. 
-
-    The 'name' field is unique to ensure that each Expert Agent can be distinctly identified. 
-
-    The relationship to Sub-Agents is defined as a many-to-many relationship using 
-        the 'expert_sub_gent_association' table, allowing for flexible associations between 
-        Expert Agents and Sub-Agents. 
-
-    The model also includes automatic timestamping for creation and updates, facilitating 
-        tracking of when agents are created and modified.     
+    Represents a Sub-Agent record returned from the database.
     """
 
-    __tablename__ = 'expert_agents'
-    
-    id          = Column(Integer, primary_key=True, index=True)
-    # Unique name for the Expert Agent
-    name        = Column(String,  unique=True, nullable=False) 
+    id: int = Field(..., description="Unique identifier for the Sub-Agent.")
+    name: str = Field(..., description="Name of the Sub-Agent.")
+    description: Optional[str] = Field(None, description="Optional description of the Sub-Agent.")
+    group_type: str = Field(..., description="Group type of the Sub-Agent (e.g., 'CAG' or 'SAG').")
+    created_at: datetime = Field(..., description="Timestamp when the Sub-Agent was created.")
+    updated_at: Optional[datetime] = Field(None, description="Timestamp when the Sub-Agent was last updated.")
 
-    # Optional description of the Expert Agent
-    description = Column(Text,    nullable=True)   
+    class Config:
+        from_attributes = True
 
-    # Optional # HEX color for styling UI representation       
-    color_theme = Column(String,  nullable=False, default="#1e293b") 
-
-    # Flag to indicate if the agent is active or archived  
-    is_active   = Column(Boolean, default=True) 
-
-    # Timestamp of creation
-    created_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc) )  
-    
-    #Timestamp of last update 
-    updated_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))  
-
-    
-    # Many-to-Many Relationshipa between Expert Agents and Sub-Agents (Specific Agents Group) 
-    specific_sub_agents = relationship(
-        "SubAgent",
-        secondary=expert_sub_gent_association,
-        back_populates="associated_experts" 
-    ) 
-# end of ExpertAgent model definition
-
-class SubAgent(Base):
+class ExpertAgentResponse(BaseModel):
     """
-    Represents a Sub-Agent that specializes in specific tasks within 
-        the domain of an Expert Agent.
-    OR Represents a Sub-Agent that can be associated with multiple Expert Agents, 
-        allowing for flexible specialization across different domains.
-
-    Each Sub-Agent can be associated with multiple Expert Agents, allowing for 
-        flexible specialization across different domains. 
-
-    The model includes attributes for the sub-agent's name, description, timestamps, 
-        and a relationship to its associated Expert Agents. 
-
-    The 'name' field is unique to ensure that each Sub-Agent can be distinctly identified. 
-
-    The relationship to Expert Agents is defined as a many-to-many relationship using 
-        the 'expert_sub_gent_association' table, allowing for flexible associations between 
-        Sub-Agents and Expert Agents. 
-
-    The model also includes automatic timestamping for creation and updates, facilitating 
-        tracking of when sub-agents are created and modified. 
-
+    Represents an Expert Agent record returned from the database,
+    including its associated Sub-Agents.
     """
 
-    __tablename__ = 'sub_agents'
-    
-    id = Column(Integer, primary_key=True, index=True)
-    # Unique name for the Sub-Agent
-    name = Column(String,  unique=True, nullable=False) 
-    # Optional description of the Sub-Agent
-    description = Column(Text, nullable=True)   
-    # 'CAG' or 'SAG' to indicate the type of sub-agent (Common or Specialized)
-    group_type = Column(String, nullable=False, default="CAG") 
-    # Timestamp of creation
-    created_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc) )  
-    # Timestamp of last update 
-    updated_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))  
+    id: int = Field(..., description="Unique identifier for the Expert Agent.")
+    name: str = Field(..., description="Name of the Expert Agent.")
+    description: Optional[str] = Field(None, description="Optional description of the Expert Agent.")
+    color_theme: Optional[str] = Field(None, description="Optional HEX color theme for UI representation.")
+    is_active: bool = Field(..., description="Indicates whether the Expert Agent is currently active.")
+    created_at: datetime = Field(..., description="Timestamp when the Expert Agent was created.")
+    updated_at: Optional[datetime] = Field(None, description="Timestamp when the Expert Agent was last updated.")
+    specific_sub_agents: List[SubAgentResponse] = Field(default_factory=list, description="Sub-Agents associated with this Expert Agent.")
 
-    # Back-populated relationship to Expert Agents through the association table, 
-    #   allowing for many-to-many relationships
-    associated_experts = relationship(
-        "ExpertAgent",
-        secondary =expert_sub_gent_association,
-        back_populates="specific_sub_agents"
-    )
-# end of SubAgent model definition
+    class Config:
+        from_attributes = True
+
+class AgentInteractionResponse(BaseModel):
+    """
+    Represents an interaction between an Expert Agent and a Sub-Agent.
+    """
+
+    id: int = Field(..., description="Unique identifier for the interaction.")
+    expert_agent_id: int = Field(..., description="ID of the Expert Agent that initiated the interaction.")
+    sub_agent_id: int = Field(..., description="ID of the Sub-Agent that handled the interaction.")
+    input_prompt: str = Field(..., description="The prompt/input sent to the Sub-Agent.")
+    output_response: Optional[str] = Field(None, description="The response returned by the Sub-Agent.")
+    duration_ms: Optional[int] = Field(None, description="Time taken to generate the response in milliseconds.")
+    input_tokens: Optional[int] = Field(None, description="Number of tokens in the input prompt.")
+    output_tokens: Optional[int] = Field(None, description="Number of tokens in the output response.")
+    created_at: datetime = Field(..., description="Timestamp when the interaction occurred.")
+
+    class Config:
+        from_attributes = True
+
+# end of file ./schemas/agent.py
