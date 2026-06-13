@@ -53,9 +53,28 @@ export const AgentProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     fetchLogs();
-    // Poll logs every 2 seconds to keep bottom window updated
-    const interval = setInterval(fetchLogs, 2000);
-    return () => clearInterval(interval);
+
+    // Pause polling when the tab is hidden; resume when it becomes visible again.
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      if (!interval) interval = setInterval(fetchLogs, 2000);
+    };
+    const stopPolling = () => {
+      if (interval) { clearInterval(interval); interval = null; }
+    };
+
+    const onVisibilityChange = () => {
+      document.hidden ? stopPolling() : startPolling();
+    };
+
+    if (!document.hidden) startPolling();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.token]);
 
