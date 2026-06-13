@@ -2,7 +2,7 @@
 
 **Project:** CDAGS AI-Agents: OT-IT Convergence & Cybersecurity
 **Pattern:** Mixture of Experts (MoE)
-**Status:** Iteration 2 (Admin App) COMPLETE — Iteration 3 IN PLANNING
+**Status:** Iteration 3 (User Management) COMPLETE — Iteration 4 IN PLANNING
 **Last updated:** 2026-06-13
 **Branch:** `iteration-2`
 
@@ -64,7 +64,7 @@ graph TD
 
 ### 1.1 The Mixture of Experts (MoE) Pattern
 
-1. **Orchestrator (Router)**: Receives requests, routes them to the correct Expert Agent, enforces CAG/SAG access rules, and maintains global system state. *(Iteration 3 target)*
+1. **Orchestrator (Router)**: Receives requests, routes them to the correct Expert Agent, enforces CAG/SAG access rules, and maintains global system state. *(Iteration 4 target)*
 2. **Expert Agents**: Domain-specific agents with deep functional knowledge of one OT domain. Each has a `code_name`, `color_theme`, and a list of authorized SAG sub-agents.
 3. **Sub-Agents**: Utility agents in two groups:
    - **CAG (Common Agent Group)**: Available to all Expert Agents implicitly (`group_type = "CAG"`). Never stored in the mapping table.
@@ -97,30 +97,34 @@ backend/
 │   │   ├── __init__.py
 │   │   ├── agent.py            # ExpertAgent, SubAgent, AgentInteraction, mapping table
 │   │   ├── log.py              # SystemLog model
-│   │   └── user.py             # User model (username, email, hashed_password, role)
+│   │   └── user.py             # User + UserEaAccess models (Iteration 3)
 │   ├── schemas/
 │   │   ├── __init__.py
 │   │   ├── agent.py            # SubAgentResponse, ExpertAgentResponse, AgentSelectResponse,
 │   │   │                       #   AgentInteractionResponse
 │   │   ├── log.py              # SystemLogCreate, SystemLogResponse
-│   │   └── user.py             # UserLogin, LoginResponse, UserCreate, UserResponse
+│   │   └── user.py             # UserLogin, LoginResponse, UserCreate, UserResponse,
+│   │                           #   VALID_ROLES, UserCreateAdmin, UserListItem, UserUpdate,
+│   │                           #   PasswordReset, EaAccessItem, EaAccessUpdate
 │   └── api/
 │       ├── __init__.py
-│       ├── auth.py             # POST /api/auth/login + require_jwt() dependency
+│       ├── auth.py             # POST /api/auth/login + require_jwt() + pwd_context
 │       ├── agents.py           # GET /api/agents/, POST /api/agents/{id}/select (JWT enforced)
-│       └── logs.py             # GET /api/logs/, POST /api/logs/ (JWT enforced)
-├── seed.py                     # Idempotent DB seed — _get_or_create() pattern, no drop_all
-│                               # Auto-migrates sub_agents.code_name via ALTER TABLE + index
+│       ├── logs.py             # GET /api/logs/, POST /api/logs/ (JWT enforced)
+│       └── users.py            # /api/users/ CRUD + EA access endpoints (Iteration 3)
+├── seed.py                     # Idempotent DB seed — _get_or_create(), no drop_all
+│                               # Auto-migrates schema via ALTER TABLE + index creation
 │                               # Seeds 8 Expert Agents + 5 Sub-Agents + 2 SAG mappings
+│                               # Seeds admin (legacy) + mike.k (superuser)
 ├── database_test.py            # Manual DB connectivity test script
-└── requirements.txt            # Python dependencies
+└── requirements.txt
 ```
 
-> **Not yet built (Iteration 3):**
+> **Not yet built (Iteration 4):**
 > - `app/services/` — agent engine, CAG/SAG routing logic
 > - `app/api/orchestrator.py` — POST /api/orchestrate endpoint
 > - `backend/tests/` — Pytest test suite
-> - `PATCH /api/agents/{id}` — activate/deactivate endpoint
+> - `PATCH /api/agents/{id}` — activate/deactivate endpoint (backend toggle, UI ready)
 
 ### 2.2 Database Schema — Current State
 
@@ -128,17 +132,25 @@ backend/
 erDiagram
     USERS {
         int id PK
-        string username
-        string email
-        string hashed_password
-        string role
+        string username "unique, lowercase first.l format"
+        string email "unique"
+        string hashed_password "bcrypt"
+        string role "one of 11 defined roles"
+        boolean is_active "default true"
+        string corporate_id "nullable, alphanumeric"
+        string uid "unique 8-char UUID hex, immutable"
         datetime created_at
         datetime updated_at
+    }
+    USER_EA_ACCESS {
+        int id PK
+        int user_id FK
+        int expert_agent_id FK
     }
     EXPERT_AGENTS {
         int id PK
         string name
-        string code_name
+        string code_name "unique"
         string description
         string color_theme
         boolean is_active
@@ -148,7 +160,7 @@ erDiagram
     SUB_AGENTS {
         int id PK
         string name
-        string code_name
+        string code_name "unique"
         string description
         string group_type "CAG or SAG"
         datetime created_at
@@ -178,123 +190,133 @@ erDiagram
         text metadata_json
     }
 
+    USERS ||--o{ USER_EA_ACCESS : "ea_access"
+    EXPERT_AGENTS ||--o{ USER_EA_ACCESS : "granted_to"
     EXPERT_AGENTS ||--o{ EXPERT_SUB_AGENT_MAPPING : "SAG mappings"
     SUB_AGENTS ||--o{ EXPERT_SUB_AGENT_MAPPING : "mapped_to"
     EXPERT_AGENTS ||--o{ AGENT_INTERACTIONS : "initiates"
     SUB_AGENTS ||--o{ AGENT_INTERACTIONS : "handles"
 ```
 
-### 2.3 Pydantic Schemas — Current State
+### 2.3 RBAC — Role Definitions
 
-#### `schemas/agent.py`
+| Role string | Short code | Description |
+|-------------|------------|-------------|
+| `superuser` | SU | Full system control — all UI views, all endpoints, User Mgmt |
+| `operator` | OPR | Read-only + can activate/deactivate Expert Agents |
+| `admin-data-manager` | DATA | Admin for OT Plant Data Manager EA |
+| `admin-asset-register-manager` | ASSET-REG | Admin for OT Plant Asset Register Manager EA |
+| `admin-asset-risk-manager` | ASSET-RISK | Admin for OT Plant Asset Risk Register Manager EA |
+| `admin-change-manager` | CHANGE | Admin for OT Plant Change Management Manager EA |
+| `admin-logging-manager` | LOG | Admin for OT Plant Logging & Monitoring Manager EA |
+| `admin-siem-manager` | SIEM | Admin for OT Plant Security Incident Manager EA |
+| `admin-reports-manager` | REPORTS | Admin for OT Plant Analytics & Report Manager EA |
+| `general-user` | GENERAL | Prompt Window + Health Status only; EA access is per-user list |
+| `admin` | — | Legacy — kept during migration, remove later |
+
+> **`general-user` EA access** is controlled by the `user_ea_access` join table. A superuser can grant or revoke access to individual Expert Agents per general-user from the User Mgmt view.
+
+### 2.4 Pydantic Schemas — Current State
+
+#### `schemas/user.py` — User Management (Iteration 3 additions)
 
 ```python
-class SubAgentResponse(BaseModel):
-    id: int
-    name: str
-    description: Optional[str]
-    group_type: str               # "CAG" or "SAG"
-    created_at: datetime
-    updated_at: Optional[datetime]
+VALID_ROLES: frozenset = frozenset({
+    "superuser", "operator",
+    "admin-data-manager", "admin-asset-register-manager",
+    "admin-asset-risk-manager", "admin-change-manager",
+    "admin-logging-manager", "admin-siem-manager",
+    "admin-reports-manager", "general-user", "admin",
+})
 
-class ExpertAgentResponse(BaseModel):
-    id: int
-    name: str
-    description: Optional[str]
-    color_theme: str
-    is_active: bool
-    created_at: datetime
-    updated_at: Optional[datetime]
-    specific_sub_agents: List[SubAgentResponse] = []   # SAG sub-agents only
+class UserCreateAdmin(BaseModel):
+    username:     str           # first_name.last_initial, lowercase
+    email:        EmailStr
+    password:     str           # min 8 chars
+    role:         str           # validated against VALID_ROLES
+    corporate_id: Optional[str] # alphanumeric external ID
+    is_active:    bool = True
 
-class AgentSelectResponse(BaseModel):
-    status: str
-    message: str
-    agent_id: int
+class UserListItem(BaseModel):
+    id: int; uid: str; username: str; email: str
+    role: str; is_active: bool; corporate_id: Optional[str]
+    created_at: datetime; updated_at: Optional[datetime]
 
-class AgentInteractionResponse(BaseModel):
-    id: int
+class UserUpdate(BaseModel):    # all Optional — partial PATCH
+    email: Optional[EmailStr]; role: Optional[str]
+    corporate_id: Optional[str]; is_active: Optional[bool]
+
+class PasswordReset(BaseModel):
+    new_password: str           # min 8 chars
+
+class EaAccessItem(BaseModel):
+    id: int; user_id: int; expert_agent_id: int
+
+class EaAccessUpdate(BaseModel):
     expert_agent_id: int
-    sub_agent_id: int
-    input_prompt: str
-    output_response: Optional[str]
-    duration_ms: Optional[int]
-    input_tokens: Optional[int]
-    output_tokens: Optional[int]
-    created_at: datetime
 ```
 
-#### `schemas/log.py`
+### 2.5 API Endpoints — Current State
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `POST` | `/api/auth/login` | None | bcrypt verify + HS256 JWT |
+| `GET` | `/api/agents/` | JWT | All Expert Agents with SAG sub-agents |
+| `POST` | `/api/agents/{id}/select` | JWT | Register selection, write USER log |
+| `GET` | `/api/logs/` | JWT | Recent logs, newest-first (`?limit=` 1–500) |
+| `POST` | `/api/logs/` | JWT | Add log entry (audit trail from admin UI) |
+| `GET` | `/api/users/` | JWT + superuser | List all users ordered by username |
+| `POST` | `/api/users/` | JWT + superuser | Create user — validates role, generates uid |
+| `PATCH` | `/api/users/{id}` | JWT + superuser | Partial update (email, role, is_active, corporate_id) |
+| `POST` | `/api/users/{id}/reset-password` | JWT + superuser | Hash and store new password |
+| `DELETE` | `/api/users/{id}` | JWT + superuser | Hard delete user |
+| `GET` | `/api/users/{id}/ea-access` | JWT + superuser | List EA access for user |
+| `POST` | `/api/users/{id}/ea-access` | JWT + superuser | Grant EA access |
+| `DELETE` | `/api/users/{id}/ea-access/{ea_id}` | JWT + superuser | Revoke EA access |
+| `GET` | `/health` | None | `{"status": "ok"}` |
+
+> **Pending (Iteration 4):** `PATCH /api/agents/{id}` — toggle `is_active` on ExpertAgent.
+
+### 2.6 Auth Implementation
+
+Two FastAPI dependency functions in `app/api/auth.py`:
 
 ```python
-LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "SUCCESS"]
+# JWT validation — used by all protected endpoints
+def require_jwt(credentials = Security(_bearer)) -> dict:
+    payload = jwt.decode(credentials.credentials, _JWT_SECRET, algorithms=[_JWT_ALGORITHM])
+    return payload   # raises 401 on failure
 
-class SystemLogCreate(BaseModel):
-    level: LogLevel = "INFO"
-    source: str = "SYSTEM"
-    message: str
-    metadata_json: Optional[str] = None
-
-class SystemLogResponse(BaseModel):
-    id: int
-    created_at: datetime          # field is created_at, not timestamp
-    level: LogLevel
-    source: str
-    message: str
-    metadata_json: Optional[str]
+# Superuser gate — wraps require_jwt, used by all /api/users/ endpoints
+def require_superuser(payload = Depends(require_jwt)) -> dict:
+    if payload.get("role") not in ("superuser", "admin"):
+        raise HTTPException(403, "Superuser role required")
+    return payload
 ```
 
-#### `schemas/user.py`
+The JWT payload includes `sub` (username), `id`, `role`, and `exp`. The frontend detects 401 and calls `logout()` automatically.
 
-```python
-class UserLogin(BaseModel):
-    username: str
-    password: str
-
-class LoginResponse(BaseModel):
-    status: str
-    token: str
-    id: int
-    username: str
-    email: str
-    role: str
-```
-
-### 2.4 API Endpoints — Current State
-
-| Method | Endpoint | Auth | Response | Description |
-|--------|----------|------|----------|-------------|
-| `POST` | `/api/auth/login` | None | `LoginResponse` | bcrypt verify + HS256 JWT |
-| `GET` | `/api/agents/` | JWT required | `List[ExpertAgentResponse]` | All Expert Agents with SAG `specific_sub_agents` |
-| `POST` | `/api/agents/{id}/select` | JWT required | `AgentSelectResponse` | Registers selection, writes USER log entry |
-| `GET` | `/api/logs/` | JWT required | `List[SystemLogResponse]` | Recent logs, newest-first. `?limit=` (1–500, default 50) |
-| `POST` | `/api/logs/` | JWT required | `SystemLogResponse` | Add a manual log entry (used for audit logging from admin UI) |
-| `GET` | `/health` | None | `{"status": "ok"}` | Health check |
-
-> **Pending endpoint (Iteration 3):** `PATCH /api/agents/{id}` — toggle `is_active` on an ExpertAgent. The Admin UI Activate/Deactivate buttons are wired and awaiting this endpoint.
-
-### 2.5 Auth Implementation
-
-`require_jwt()` is a FastAPI `Security` dependency in `app/api/auth.py`:
-
-```python
-_bearer = HTTPBearer()
-def require_jwt(credentials: HTTPAuthorizationCredentials = Security(_bearer)) -> dict:
-    try:
-        payload = jwt.decode(credentials.credentials, _JWT_SECRET, algorithms=[_JWT_ALGORITHM])
-        return payload
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token",
-                            headers={"WWW-Authenticate": "Bearer"})
-```
-
-All protected endpoints declare `_token: dict = Depends(require_jwt)`. The frontend detects 401 responses and calls `logout()` automatically, clearing localStorage and redirecting to login.
-
-### 2.6 Database Seed Data
+### 2.7 Database Seed Data
 
 Run: `cd backend && python seed.py`
 
-`seed.py` is idempotent — uses `_get_or_create()` pattern, no `drop_all()`. Safe to re-run. Auto-migrates `sub_agents.code_name` column if missing via `ALTER TABLE` + `CREATE UNIQUE INDEX`.
+`seed.py` is idempotent — `_get_or_create()` pattern, no `drop_all()`. Safe to re-run. Auto-migrates schema via `ALTER TABLE` + `CREATE UNIQUE INDEX` (SQLite limitation workaround).
+
+#### Migrations applied by seed.py
+
+| Column | Table | Added in |
+|--------|-------|----------|
+| `code_name` | `sub_agents` | Iteration 2 |
+| `is_active` | `users` | Iteration 3 |
+| `corporate_id` | `users` | Iteration 3 |
+| `uid` | `users` | Iteration 3 |
+
+#### Seeded Users
+
+| Username | Role | Password |
+|----------|------|----------|
+| `admin` | `admin` (legacy) | `admin` |
+| `mike.k` | `superuser` | `Admin1234!` |
 
 #### Expert Agents (8 records)
 
@@ -309,17 +331,17 @@ Run: `cd backend && python seed.py`
 | OT Plant Security Incident Manager | `ot_plant_security_incident_manager` | `#4338ca` |
 | OT Plant Analytics & Report Manager | `ot_plant_analytics_report_manager` | `#0369a1` |
 
-#### Sub-Agents (5 records, seeded)
+#### Sub-Agents (5 records)
 
 | Name | code_name | group_type | Authorized Expert Agents |
 |------|-----------|------------|--------------------------|
-| Email Agent | `email_agent` | `CAG` | All (implicit — not in mapping table) |
+| Email Agent | `email_agent` | `CAG` | All (implicit) |
 | Alert Notification Agent | `alert_notification_agent` | `CAG` | All (implicit) |
 | Trouble Ticket Agent | `trouble_ticket_agent` | `CAG` | All (implicit) |
 | Modbus Protocol Agent | `modbus_protocol_agent` | `SAG` | OT Plant Data Manager |
 | Safety Compliance Agent | `safety_compliance_agent` | `SAG` | OT Plant Asset Register Manager |
 
-### 2.7 Environment Variables
+### 2.8 Environment Variables
 
 Required in `backend/app/.env`:
 
@@ -345,78 +367,66 @@ frontend/
 ├── package.json
 ├── tsconfig.json
 ├── tsconfig.app.json
-├── vite.config.ts                  # Port 6173, strictPort, proxy /api + /health → :8000
-├── public/
-│   ├── favicon.svg
-│   ├── icons.svg
-│   └── bg-dark-hex.jpg
+├── vite.config.ts
 └── src/
     ├── main.tsx
-    ├── App.tsx                     # Provider tree + AuthCheckGate (hash router)
+    ├── App.tsx                         # Provider tree + AuthCheckGate (hash router)
     ├── vite-env.d.ts
     ├── types/
-    │   └── index.ts                # UserSession, SubAgent, ExpertAgent, SystemLog,
-    │                               #   AdminNavView, ViewMode
+    │   └── index.ts                    # All shared TypeScript interfaces and constants
     ├── context/
-    │   ├── AuthContext.tsx         # Session state, login (JWT), logout
-    │   ├── AgentContext.tsx        # Agent list, active selection, log polling (2s),
-    │   │                           #   visibility-aware (Page Visibility API),
-    │   │                           #   Authorization header on all fetches,
-    │   │                           #   401 → auto-logout
-    │   └── ThemeContext.tsx        # Light/dark toggle, body class, localStorage
+    │   ├── AuthContext.tsx             # Session state, login (JWT), logout
+    │   ├── AgentContext.tsx            # Agent list, polling, Authorization headers
+    │   └── ThemeContext.tsx            # Light/dark toggle, body class, localStorage
     ├── components/
     │   ├── Layout/
-    │   │   ├── Banner.tsx          # Logo, title, user, live clock, theme toggle,
-    │   │   │                       #   ⚙ Admin button (admin role only → /#admin)
-    │   │   ├── Sidebar.tsx         # Agent list, active highlight
-    │   │   ├── LogPanel.tsx        # Live log console, auto-scroll, newest-at-bottom
+    │   │   ├── Banner.tsx              # Logo, clock, theme toggle, ⚙ Admin button
+    │   │   ├── Sidebar.tsx             # Agent list + active highlight
+    │   │   ├── LogPanel.tsx            # Live log console, auto-scroll
     │   │   └── Footer.tsx
     │   ├── Agent/
-    │   │   ├── AgentGrid.tsx       # auto-fit grid of agent tiles (grid view, locked)
-    │   │   └── AgentTile.tsx       # Per-agent color border + glow, active scale
+    │   │   ├── AgentGrid.tsx
+    │   │   └── AgentTile.tsx
     │   └── Auth/
     │       └── LoginForm.tsx
-    ├── admin/                      # Admin App shell (hash: /#admin)
-    │   ├── AdminApp.tsx            # AdminShell — holds viewMode state, renders admin layout
+    ├── admin/
+    │   ├── AdminApp.tsx                # AdminShell — viewMode state, activeView state
     │   ├── hooks/
-    │   │   └── useAdminAgents.ts   # useAdminAgents() + useHealthStatus() + logAdminAction()
+    │   │   ├── useAdminAgents.ts       # Agent management + logAdminAction()
+    │   │   └── useUserMgmt.ts          # User CRUD + EA access + logAdminAction()
     │   └── components/
-    │       ├── AdminBanner.tsx     # Admin banner — Grid/Tile toggle, ← Dashboard, Sign Out
-    │       ├── AdminNav.tsx        # Left nav — 4 views
+    │       ├── AdminBanner.tsx         # Grid/Tile toggle (disabled for non-grid views)
+    │       ├── AdminNav.tsx            # Left nav — 4 views
     │       ├── AdminFooter.tsx
     │       └── views/
-    │           ├── UserMgmtView.tsx        # Placeholder
-    │           ├── AgentMgmtView.tsx       # Agent table/tile + Activate/Deactivate buttons
-    │           ├── PromptWindowView.tsx    # Placeholder
-    │           └── HealthStatusView.tsx   # Backend health + agent status table/tile
+    │           ├── UserMgmtView.tsx    # Full user management UI (Iteration 3)
+    │           ├── AgentMgmtView.tsx   # Agent table/tile, Activate/Deactivate
+    │           ├── PromptWindowView.tsx
+    │           └── HealthStatusView.tsx
     └── styles/
-        ├── variables.css           # :root tokens + body.light-theme + body.dark-theme
-        ├── global.css              # Reset, imports variables/layouts/components
-        ├── layouts.css             # Dashboard CSS grid + admin CSS grid
-        └── components.css          # .agent-tile, .agent-grid, .agent-grid-tile, etc.
+        ├── variables.css
+        ├── global.css
+        ├── layouts.css
+        └── components.css
 ```
 
 ### 3.2 Hash-Based Dual-App Routing
 
-`App.tsx` dispatches between two app shells based on `window.location.hash`:
-
 ```
-/#          →  DashboardShell  (read-only agent grid, log panel)
-/#admin     →  AdminShell      (admin-only, role-gated in UI)
+/#          →  DashboardShell   (agent grid, log panel — read-only)
+/#admin     →  AdminShell       (admin-only, role-gated in UI)
 ```
 
-`AuthCheckGate` listens to `hashchange` events and re-renders on navigation. No react-router-dom dependency. Both shells share the same React context providers (`AuthContext`, `ThemeContext`).
+`AuthCheckGate` listens to `hashchange` events. No react-router dependency.
 
-### 3.3 Dashboard App (/#)
+### 3.3 Dashboard App (`/#`)
 
-- Read-only view of all 8 Expert Agents in grid layout (locked — no tile toggle on dashboard)
+- Read-only view of all 8 Expert Agents in auto-fit grid layout
 - Live log console polling every 2s (pauses when tab is hidden via Page Visibility API)
-- Sidebar shows agent list with active selection
-- Banner shows `⚙ Admin` button only for `role === 'admin'` users
+- Sidebar shows agent list with active selection highlight
+- Banner shows `⚙ Admin` button only for `role === 'admin'` or `role === 'superuser'`
 
-### 3.4 Admin App (/#admin)
-
-Admin-only driver app for managing the CDAGS framework.
+### 3.4 Admin App (`/#admin`)
 
 #### Layout
 ```
@@ -426,106 +436,131 @@ areas:   "admin-banner admin-banner"
          "admin-nav    admin-main"
          "admin-footer admin-footer"
 ```
-No log panel in admin layout.
 
 #### Left Nav Views
 
 | View | Key | Status |
 |------|-----|--------|
-| User Management | `user-mgmt` | Placeholder |
-| AI-Agent Management | `agent-mgmt` | Implemented |
+| User Management | `user-mgmt` | Implemented (Iteration 3) |
+| AI-Agent Management | `agent-mgmt` | Implemented (Iteration 2) |
 | Prompt Window | `prompt-window` | Placeholder |
-| Health Status | `health-status` | Implemented |
+| Health Status | `health-status` | Implemented (Iteration 2) |
 
 #### Grid / Tile Toggle
 
-`viewMode: 'grid' | 'tile'` state is held in `AdminShell` and passed as props to `AdminBanner`, `AgentMgmtView`, and `HealthStatusView`. The dashboard is locked to grid — toggle only appears in admin banner.
+`viewMode: 'grid' | 'tile'` is held in `AdminShell`. The Grid/Tile toggle buttons in `AdminBanner` are **disabled** (opacity 0.35, `cursor: not-allowed`) when `activeView` is `user-mgmt` or `prompt-window` — views with no grid/tile variants.
 
 #### AI-Agent Management View
 
-- **Grid mode**: table layout — agent name, color swatch, Active/Inactive badge, sub-agents list, action button
-- **Tile mode**: card layout — color border, agent name, Active/Inactive badge, action button
+- **Grid mode**: table — agent name, color swatch, Active/Inactive badge, sub-agents, action button
+- **Tile mode**: cards — color border, agent name, Active/Inactive badge, action button
 - **Activate button**: neon green (`#00ff88`), green border (`#15803d`)
 - **Deactivate button**: neon orange (`#ff6a00`), dark orange border (`#c2410c`)
-- **Confirmation dialog**: `window.confirm()` fires before any toggle action, names the agent and warns the action is logged
-- **Audit logging**: every confirmed action posts to `POST /api/logs/` with `level: "INFO"`, `source: "USER"`, message includes username + agent name + id
-- **Toggle itself**: NOT yet implemented — shows toast "Toggle not yet implemented" pending `PATCH /api/agents/{id}` endpoint
+- **Confirmation dialog**: `window.confirm()` before every toggle — names agent, warns action is logged
+- **Audit logging**: every confirmed action posts to `POST /api/logs/` via `logAdminAction()`
+- **Toggle itself**: NOT yet wired to backend — shows toast "Toggle not yet implemented" (pending Iteration 4 `PATCH /api/agents/{id}`)
 
 #### Health Status View
 
-- Backend API health check: `GET /health` — shows green/red dot + status string
-- Expert Agent status: reads from `GET /api/agents/`
-- **Grid mode**: table — agent name, color swatch, Active/Inactive dot, type
-- **Tile mode**: cards — color border, agent name, Active/Inactive dot
+- Backend API health: `GET /health` — green/red dot + status
+- Expert Agent status: `GET /api/agents/`
+- **Grid mode**: table — name, color swatch, Active/Inactive dot, type
+- **Tile mode**: cards — color border, name, Active/Inactive dot
+
+#### User Management View
+
+Full CRUD UI — superuser only. Three sections:
+
+**Section 1 — Add/Edit Form**
+
+| Field | Editable | Notes |
+|-------|----------|-------|
+| Username | Add only | Locked in edit mode; format `first.l` (regex validated) |
+| Email | Yes | EmailStr validated |
+| Default / Reset Password | Yes | Min 8 chars; show/hide toggle (SVG eye icon) |
+| Corporate ID | Yes | Optional alphanumeric |
+| Date Created | Read-only | Auto-generated — darker background, muted text |
+| System UID | Read-only | 8-char UUID hex, monospace — darker background, muted text |
+| Role | Yes | `<select>` from `ROLE_LABELS` |
+
+**Section 2 — Search / Filter Bar + Role Matrix Table**
+
+- **Username search**: live text filter, updates on keystroke, `✕` clear button
+- **Role filter dropdown**: `SHORT — Full Name` format (e.g. `SU — Superuser`), `✕` clear button
+- Both filters compose; match count shows `N / M users`
+- **Table**: sticky header, `max-height: 420px`, `overflow-y: auto` scroll
+- **Sortable columns**: Username and Status — click to toggle ▲/▼, dimmed `⇅` when inactive
+- **Columns**: Username | UID | Status | SU | OPR | DATA | ASSET-REG | ASSET-RISK | CHANGE | LOG | SIEM | REPORTS | GENERAL | Actions
+- **RoleDot**: 12px circle — neon green `#00ff88` = current role, crimson `#dc143c` = other role; click non-current dot → `window.confirm()` → PATCH role
+- **Status**: "Active" in `#00ff88`, "Suspended" in `#ff6a00`
+- **Actions**: Suspend/Restore (orange/green) + Delete (crimson) with confirm dialogs
+
+**Section 3 — EA Access Panel** (general-user only)
+
+Shown below the table when a `general-user` row is selected. Lists all 8 Expert Agents as toggle cards. Green border + green dot = access granted; crimson dot = no access. Click to toggle.
+
+**Toast**: fixed bottom-center, 3s auto-dismiss.
+
+**Role short codes** (column headers):
+
+| Role | Short Code |
+|------|-----------|
+| superuser | SU |
+| operator | OPR |
+| admin-data-manager | DATA |
+| admin-asset-register-manager | ASSET-REG |
+| admin-asset-risk-manager | ASSET-RISK |
+| admin-change-manager | CHANGE |
+| admin-logging-manager | LOG |
+| admin-siem-manager | SIEM |
+| admin-reports-manager | REPORTS |
+| general-user | GENERAL |
 
 ### 3.5 TypeScript Types (`src/types/index.ts`)
 
 ```typescript
-export interface UserSession {
-  id: number;
-  token: string;
-  username: string;
-  role: string;
-}
-
-export interface SubAgent {
-  id: number;
-  name: string;
-  description?: string;
-  group_type: string;
-  created_at: string;
-  updated_at?: string;
-}
-
-export interface ExpertAgent {
-  id: number;
-  name: string;
-  description?: string;
-  color_theme: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at?: string;
-  specific_sub_agents: SubAgent[];
-}
-
-export interface SystemLog {
-  id: number;
-  created_at: string;
-  level: string;
-  source: string;
-  message: string;
-  metadata_json?: string;
-}
+export interface UserSession { id, token, username, role }
+export interface SubAgent { id, name, description?, group_type, created_at, updated_at? }
+export interface ExpertAgent { id, name, description?, color_theme, is_active, created_at, updated_at?, specific_sub_agents }
+export interface SystemLog { id, created_at, level, source, message, metadata_json? }
 
 export type AdminNavView = 'user-mgmt' | 'agent-mgmt' | 'prompt-window' | 'health-status';
 export type ViewMode = 'grid' | 'tile';
+
+export type UserRole =
+  | 'superuser' | 'operator'
+  | 'admin-data-manager' | 'admin-asset-register-manager'
+  | 'admin-asset-risk-manager' | 'admin-change-manager'
+  | 'admin-logging-manager' | 'admin-siem-manager'
+  | 'admin-reports-manager' | 'general-user' | 'admin';
+
+export const ALL_ROLES: UserRole[]              // 10 roles (excludes 'admin' legacy)
+export const ROLE_LABELS: Record<UserRole, string>  // human-readable labels
+export const ROLE_SHORT: Record<string, string>     // SU, OPR, DATA, …, GENERAL
+
+export interface UserListItem { id, uid, username, email, role, is_active, corporate_id, created_at, updated_at }
+export interface UserCreatePayload { username, email, password, role, corporate_id?, is_active? }
+export interface UserUpdatePayload { email?, role?, corporate_id?, is_active? }
+export interface EaAccessItem { id, user_id, expert_agent_id }
 ```
 
 ### 3.6 CSS Design System
 
-#### Tokens (variables.css)
+#### Tokens (`variables.css`)
 - `--active-highlight`: neon blue `#3b82f6` (light) / `#60a5fa` (dark)
 - `--bg-primary`, `--bg-secondary`, `--bg-tertiary`: layered backgrounds
 - `--border-color`, `--text-primary`, `--text-secondary`, `--text-tertiary`
 - `--banner-height`: `60px`, `--footer-height`: `30px`
 
 #### Neon accents
-- `#00f0ff` — "CDAGS" in both banners, "AI-Agents" in main heading
-- `#00ff88` — Activate button
-- `#ff6a00` — Deactivate button
+- `#00f0ff` — "CDAGS" in both banners
+- `#00ff88` — Activate button, Active status, current-role dot
+- `#ff6a00` — Deactivate/Suspend button
+- `#dc143c` — Delete button, non-active role dot
 
-#### Agent Tile Colors (from DB `color_theme`)
-
-| Agent | Color |
-|-------|-------|
-| UI Color Palate Manager | Slate Grey `#334155` |
-| OT Plant Data Manager | Navy Blue `#1e3a8a` |
-| OT Plant Asset Register Manager | Deep Teal `#0f766e` |
-| OT Plant Asset Risk Register Manager | Forest Green `#15803d` |
-| OT Plant Change Management Manager | Deep Crimson `#991b1b` |
-| OT Plant Logging & Monitoring Manager | Dark Amber `#b45309` |
-| OT Plant Security Incident Manager | Purple/Indigo `#4338ca` |
-| OT Plant Analytics & Report Manager | Steel Blue `#0369a1` |
+#### Read-only field distinction (User Mgmt form)
+- Editable inputs: `background: var(--bg-tertiary)`, visible border
+- Read-only info fields (Date Created, System UID): `background: #1a1f2e`, `border: 1px solid transparent`, `color: var(--text-tertiary)`, `cursor: default`
 
 ---
 
@@ -533,53 +568,38 @@ export type ViewMode = 'grid' | 'tile';
 
 ### 4.1 Agent-to-Agent JSON Protocol
 
-Expert agents invoke sub-agents via structured JSON. All interactions are persisted in `agent_interactions`.
-
-#### Request Payload
 ```json
+// Request
 {
   "transaction_id": "tx_8f8e02d8-2615-46b0-bbcb",
   "timestamp": "2026-06-09T10:31:52Z",
   "caller_agent": "ot_plant_data_manager",
   "target_agent": "email_agent",
   "routing_group": "CAG",
-  "payload": {
-    "recipients": ["safety-lead@plant.cdags.com"],
-    "subject": "Warning: Asset Temperature Exceeded",
-    "body": "OT Plant Asset id-1082 (Generator Core) registered 98.4C, exceeding 90C threshold.",
-    "severity": "CRITICAL"
-  }
+  "payload": { "recipients": ["..."], "subject": "...", "body": "...", "severity": "CRITICAL" }
 }
-```
 
-#### Response Payload
-```json
+// Response
 {
   "transaction_id": "tx_8f8e02d8-2615-46b0-bbcb",
-  "timestamp": "2026-06-09T10:31:53Z",
   "status": "SUCCESS",
   "executing_agent": "email_agent",
-  "payload": {
-    "message_id": "msg_90847291",
-    "delivered": true,
-    "relay_latency_ms": 142
-  },
+  "payload": { "message_id": "msg_90847291", "delivered": true, "relay_latency_ms": 142 },
   "errors": null
 }
 ```
 
 ### 4.2 Logging Protocol
 
-All agent actions, user interactions, and system events are written to `system_logs` via `POST /api/logs/`.
-
 | Source | Used for |
 |--------|----------|
 | `USER` | UI clicks, tile selections, admin actions (audit trail) |
-| `SYSTEM` | Startup, DB operations, theme changes |
+| `SYSTEM` | Startup, DB operations |
 | `AGENT` | Expert→sub-agent calls, completions, routing errors |
 
-Admin UI actions (Activate/Deactivate button clicks) are posted with `source: "USER"`, `level: "INFO"`, message format:
+Admin action log format:
 ```
+Superuser "<username>" <action> user "<target>" (id=<id>).
 Admin "<username>" attempted to <activate|deactivate> agent "<name>" (id=<id>).
 ```
 
@@ -591,111 +611,94 @@ Admin "<username>" attempted to <activate|deactivate> agent "<name>" (id=<id>).
 
 | Task | Status |
 |------|--------|
-| SQLite models: User, ExpertAgent, SubAgent, AgentInteraction, SystemLog | ✓ Done |
-| FastAPI app with CORS, lifespan DB init | ✓ Done |
-| Auth endpoint — real bcrypt + HS256 JWT | ✓ Done |
-| Agent list + select endpoints | ✓ Done |
-| Log create + fetch endpoints | ✓ Done |
-| React SPA — full layout (Banner/Sidebar/Grid/LogPanel/Footer) | ✓ Done |
-| Light/Dark theme system | ✓ Done |
-| Live log console with 2s polling and auto-scroll | ✓ Done |
-| Agent tile per-color border and glow | ✓ Done |
-| TypeScript — zero `tsc --noEmit` errors | ✓ Done |
+| SQLite models: User, ExpertAgent, SubAgent, AgentInteraction, SystemLog | ✓ |
+| FastAPI app with CORS, lifespan DB init | ✓ |
+| Auth endpoint — real bcrypt + HS256 JWT | ✓ |
+| Agent list + select endpoints | ✓ |
+| Log create + fetch endpoints | ✓ |
+| React SPA — full layout (Banner/Sidebar/Grid/LogPanel/Footer) | ✓ |
+| Light/Dark theme system | ✓ |
+| Live log console with 2s polling and auto-scroll | ✓ |
+| Agent tile per-color border and glow | ✓ |
+| TypeScript — zero `tsc --noEmit` errors | ✓ |
 
 ### Iteration 2 — COMPLETE ✓
 
 | Task | Status |
 |------|--------|
-| `seed.py` made idempotent — `_get_or_create()`, no `drop_all` | ✓ Done |
-| 5 sub-agents seeded (3 CAG, 2 SAG) + 2 SAG mappings | ✓ Done |
-| `SubAgent.code_name` column added (ALTER TABLE + UNIQUE INDEX) | ✓ Done |
-| `require_jwt()` dependency — JWT enforced on all protected endpoints | ✓ Done |
-| Frontend sends `Authorization: Bearer` header on all API calls | ✓ Done |
-| Frontend 401 → auto-logout (clears stale token from localStorage) | ✓ Done |
-| Log polling pauses when browser tab is hidden (Page Visibility API) | ✓ Done |
-| `.gitignore` fixed — venv, pycache, .db, node_modules excluded | ✓ Done |
-| Admin App shell at `/#admin` (hash-based dual-app routing) | ✓ Done |
-| Admin banner, left nav (4 views), footer | ✓ Done |
-| `⚙ Admin` button in dashboard banner (admin role only) | ✓ Done |
-| Grid/Tile view toggle in admin banner (affects agent-mgmt + health-status) | ✓ Done |
-| AgentMgmtView — grid + tile layouts, Activate/Deactivate buttons | ✓ Done |
-| HealthStatusView — backend health check + agent status, grid + tile layouts | ✓ Done |
-| Deactivate button: neon orange; Activate button: neon green | ✓ Done |
-| Confirm dialog before Activate/Deactivate | ✓ Done |
-| Audit logging via `POST /api/logs/` on every admin action | ✓ Done |
-| `logAdminAction()` helper in `useAdminAgents.ts` | ✓ Done |
+| `seed.py` made idempotent — `_get_or_create()`, no `drop_all` | ✓ |
+| 5 sub-agents seeded (3 CAG, 2 SAG) + 2 SAG mappings | ✓ |
+| `SubAgent.code_name` column added (ALTER TABLE + UNIQUE INDEX) | ✓ |
+| `require_jwt()` enforced on all protected endpoints | ✓ |
+| Frontend sends `Authorization: Bearer` on all API calls | ✓ |
+| Frontend 401 → auto-logout | ✓ |
+| Log polling pauses when tab is hidden (Page Visibility API) | ✓ |
+| Admin App shell at `/#admin` (hash-based dual-app routing) | ✓ |
+| Admin banner, left nav (4 views), footer | ✓ |
+| `⚙ Admin` button in dashboard banner | ✓ |
+| Grid/Tile toggle in admin banner | ✓ |
+| AgentMgmtView — grid + tile layouts, Activate/Deactivate buttons | ✓ |
+| HealthStatusView — backend health + agent status, grid + tile | ✓ |
+| Deactivate: neon orange; Activate: neon green; confirm dialog | ✓ |
+| Audit logging via `POST /api/logs/` on every admin action | ✓ |
 
+### Iteration 3 — COMPLETE ✓
 
+| Task | Status |
+|------|--------|
+| 10-role RBAC definition (`VALID_ROLES`) | ✓ |
+| `User` model: `is_active`, `corporate_id`, `uid` columns added | ✓ |
+| `UserEaAccess` join table (general-user EA access list) | ✓ |
+| `seed.py` migrations for 3 new User columns + uid back-fill | ✓ |
+| `seed.py` idempotent seed log (no duplicate SYSTEM entries) | ✓ |
+| `mike.k` superuser seeded | ✓ |
+| `/api/users/` CRUD endpoints — 8 total (superuser-gated) | ✓ |
+| `/api/users/{id}/ea-access` — grant/revoke EA access | ✓ |
+| `require_superuser()` dependency (wraps `require_jwt`, 403 on fail) | ✓ |
+| `useUserMgmt.ts` React hook — full CRUD + EA access + logAdminAction | ✓ |
+| `UserMgmtView.tsx` — access guard, add/edit form, role matrix table | ✓ |
+| Password show/hide SVG eye icon toggle | ✓ |
+| Read-only field styling (Date Created, System UID — darker bg) | ✓ |
+| Role matrix table: sticky header, max-height scroll | ✓ |
+| Username live search filter with `✕` clear | ✓ |
+| Role filter dropdown (`SU — Superuser`, etc.) with `✕` clear | ✓ |
+| Username and Status sortable columns (▲/▼ toggle) | ✓ |
+| EA Access Panel for general-user rows | ✓ |
+| Role short codes: CHANGE, REPORTS, GENERAL (updated from CHG/RPT/GEN) | ✓ |
+| Grid/Tile toggle disabled for user-mgmt and prompt-window views | ✓ |
+| `⚙ Admin` button visible for superuser role (not just admin) | ✓ |
+| `npx tsc --noEmit` — zero errors | ✓ |
 
-### Iteration 3 — PLANNED (Next)
-
-In Iteration-3, the focus is the frontend 'admin' app. This app has a left hand panel with User Mgmt. as its first function. The User Mgmt. function should now be implemented according to the following descriptions: 
-
-1. 'admin' user is the most powerful user and can change anything in the frontend and backend or call any API endpoint. So, its role is of a super-user. 
-2. Create the following roles 
-   1. Role 1 is super user example is current 'admin' user. suggested name is 'superuser'.
-   2. Role 2 is operator: a user who can view as read-only both frontend and backend UI, call any API endpoint and also either 'activate' or 'deactivate' a specific Expert Agent. Suggested name is 'operator'.
-   3. Role 3 is EA 'admin': a user who has read or write piviledge for one specific named Expert Agent only. The idea is that each EA has a human counterpart who may turn on or off specific capabilities of the named EA. These capabilities of a specific UA will be developed over future time. Suggested name are as follows: 
-      1. 'admin-data-manager' for EA named 'OT Plant Data Manager'
-      2. 'admin-asset-register-manager' for EA named 'OT Plant Asset Register Manager'
-      3. 'admin-asset-risk-manager' for EA named 'OT Plant Asset Risk Register Manager'
-      4. 'admin-change-manager' for EA named 'OT Plant Change Management Manager'
-      5. 'admin-logging-manager' for EA named 'OT Plant Logging & Monitoring Manager'
-      6. 'admin-siem-manager' for EA named 'OT Plant Security Incident Manager'
-      7. 'admin-reports-manager' for EA named 'OT Plant Analytics & Report Manager'
-   4. Role 4 is a general user who can interact with frontend app for all functions except 'User Mgmt.' and 'AI-Agent Mgmt' functions. For example, to a general user the frontend app will only show, as of now, 'Prompt Window' and 'Health Status'. The following list should be used to design the implementation of 'User Mgmt.' Suggested role name for a general user is 'general-user'.  
-   5. The following list of descriptions should be used to design and implement the 'User Mgmt.' function:
-      1. The username should be of the form first name.last name initial. For example, Allison Smith will be given the username 'alice.s'; in case there is another Allison Smith to be added since it is a second person on the team, then 'alice.s7' a random number is added as a concatenated string to their last name initial.
-      2. There must not be any non-name user for example 'admin' with password 'admin'. Each user must be a unique name with an associated role. 
-      3. Role names provided above could be considered as 'Group Names' and each such Group may have one or more named users. For example, 
-         1. 'superuser' group may have two human persons 'Mike King' whose username will be 'mike.k' and 'Krishna Gopal' whose username will be 'krishna.g'. A username will ONLY be in lowercase. 
-         2. 'operator' group may have three human persons as users whose usernames are assigned to this Group
-         3. A 'general-user' is one who does NOT have the following roles:
-            1. cannot have superuser role assigned
-            2. cannot have operator role assigned
-            3. cannot have and 'admin-' prefix role assigned 
-            4. can be restricted to interact with only one or more or all Expert Agents; therefore, for each 'general-user' consider a design of dictionary datastructure wherein all the EA that the 'general-user' has access to are listed. OR consider any other implementation approach you think is best practices design thinking for such functionality. 
-      4. For the frontend 'admin' app, consider designing ONLY a tabular view configuration UX. This configuration UX is ONLY available to 'superuser' role for adding, deleteing, updating or suspending any user in the system. 
-      5. Via the frontend 'admin' app. provide the superuser the capability to reset the password and/or reassign the user to different roles.
-      6. Consider a Excel Worksheet like tabular view UX screen where usernames are rows and columns are different roles outlined above and each 'cell' has a radio button with either 'neon-green' to show enabled state OR 'neon-crimson' to show disabled state.
-      7. Consider the configuration screen top part to add, delete, update or suspend or unsuspend a particular user with four text box entries: username, user default password, corporate-userid (alphanumeric), date of creation of user in this system and finally an internally globally unique id generated by this backend system so that through out this application the user and their activities are logged and remain audit traceable. 
-      8. Please review the above suggestions on 'User Mgmt.' function on the left hand panel of the frontend 'admin' app and improve according to your own view of best practices. 
-
-
-
-### Iteration 4 — PLANNED (Deferred)
-
-The following items are planned for the next development phase. Priorities and scope to be confirmed before implementation begins.
+### Iteration 4 — PLANNED (Next)
 
 #### Backend
 
 | Task | Priority | Notes |
 |------|----------|-------|
-| `PATCH /api/agents/{id}` — toggle `is_active` on ExpertAgent | High | Unblocks admin Activate/Deactivate UI |
+| `PATCH /api/agents/{id}` — toggle `is_active` on ExpertAgent | High | UI is ready and wired; only backend missing |
 | `app/services/agent_engine.py` — `get_available_sub_agents()`, `dispatch()` | High | Core MoE execution layer |
-| `app/services/orchestrator.py` — Expert Agent routing/scoring logic | High | Selects EA from request domain |
-| `app/api/orchestrator.py` — `POST /api/orchestrate` endpoint | High | Entry point for agent task execution |
-| `backend/tests/` — Pytest suite (auth, agents, orchestrate) | Medium | No tests exist yet |
-| `app/config.py` — centralized env/config management | Low | Currently loaded inline |
+| `app/services/orchestrator.py` — Expert Agent routing/scoring | High | Selects EA from request domain |
+| `app/api/orchestrator.py` — `POST /api/orchestrate` | High | Entry point for agent task execution |
+| `backend/tests/` — Pytest suite (auth, agents, users, orchestrate) | Medium | No tests exist yet |
+| `app/config.py` — centralized env/config | Low | Currently loaded inline |
 
 #### Frontend
 
 | Task | Priority | Notes |
 |------|----------|-------|
 | Wire Activate/Deactivate to `PATCH /api/agents/{id}` | High | Currently shows "not implemented" toast |
-| UserMgmtView — list users, role display | Medium | Placeholder currently |
-| PromptWindowView — chat/prompt interface to orchestrator | Medium | Placeholder currently |
+| PromptWindowView — chat interface to orchestrator | High | Placeholder currently |
+| Role-based app at `/#app` | Medium | Non-admin RBAC-gated views |
 | React error boundary | Low | Unhandled errors crash full app |
-| Frontend test suite | Low | No tests exist yet |
+| Frontend test suite | Low | No tests exist |
 
-#### Architecture (Future Consideration)
+#### Architecture (Future)
 
 | Topic | Notes |
 |-------|-------|
-| Role-based user app at `/#app` | Non-admin users with RBAC-gated views, separate from `/#admin` |
-| Email gateway integration | Inbound email per Expert Agent (Postal or Stalwart), webhook → orchestrator |
-| Result short-link system | `GET /r/{short_id}` — agent result stored in DB, tiny URL returned in email reply |
-| RBAC enforcement on backend | Role checked inside `require_jwt()` or per-endpoint; currently only role is stored, not enforced |
+| Email gateway integration | Inbound email per EA, webhook → orchestrator |
+| Result short-link system | `GET /r/{short_id}` — agent result stored, tiny URL in email |
+| RBAC enforcement at `/#app` | Show only permitted views per user role |
 
 ---
 
@@ -719,13 +722,18 @@ python seed.py
 ```bash
 cd frontend
 npm install        # first time only
-npm run dev        # starts on http://localhost:6173
+npm run dev        # http://localhost:6173
 ```
-
-Default login: `admin` / `admin`
 
 ### TypeScript check (run before every commit)
 ```bash
 cd frontend
 npx tsc --noEmit
 ```
+
+### Logins
+
+| Username | Password | Role |
+|----------|----------|------|
+| `admin` | `admin` | admin (legacy) |
+| `mike.k` | `Admin1234!` | superuser |

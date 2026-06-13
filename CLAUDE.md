@@ -6,13 +6,12 @@ This file is read automatically at the start of every session. It tells Claude C
 
 ## Project Overview
 
-**Name:** CDAGS AI-Agents — OT-IT Convergence & Cybersecurity  
-**Pattern:** Mixture of Experts (MoE) AI-Agent Framework  
+**Name:** CDAGS AI-Agents — OT-IT Convergence & Cybersecurity
+**Pattern:** Mixture of Experts (MoE) AI-Agent Framework
 **Purpose:** Orchestrate specialized Expert AI Agents and Sub-Agents for OT (Operational Technology) plant operations — asset management, security incident response, data monitoring, analytics, and more.
 
-**Full specification:** `SPEC.md`  
-**Frontend reference:** `frontend/FRONTEND_ARCHITECTURE.md`  
-**Backend architecture:** `backend/BACKEND_ARCHITECTURE.md`
+**Full specification:** `SPEC.md`
+**Iteration 3 workbook:** `WORKBOOK-Iteration-3.md`
 
 ---
 
@@ -22,26 +21,48 @@ This file is read automatically at the start of every session. It tells Claude C
 appsFrame/                  # Python virtual environment (DO NOT commit)
 backend/                    # FastAPI Python backend
   app/
-    main.py                 # App entry, CORS, lifespan
+    main.py                 # App entry, CORS, lifespan, router registration
     database.py             # SQLAlchemy engine + get_db()
     models/                 # SQLAlchemy ORM models
+      user.py               # User + UserEaAccess models
+      agent.py              # ExpertAgent, SubAgent, AgentInteraction, mapping table
+      log.py                # SystemLog model
     schemas/                # Pydantic request/response schemas
+      user.py               # VALID_ROLES + all user management schemas
     api/                    # FastAPI route controllers
-  seed.py                   # DB seed script (run once: python seed.py)
+      auth.py               # login + require_jwt() + pwd_context
+      users.py              # /api/users/ CRUD + EA access (superuser-gated)
+      agents.py             # /api/agents/ (JWT enforced)
+      logs.py               # /api/logs/ (JWT enforced)
+  seed.py                   # Idempotent DB seed — safe to re-run
   requirements.txt
 frontend/                   # React + TypeScript SPA
   src/
-    App.tsx                 # Root component + auth gate
+    App.tsx                 # Root component + hash-based dual-app router
     context/                # AuthContext, AgentContext, ThemeContext
     components/
       Layout/               # Banner, Sidebar, LogPanel, Footer
       Agent/                # AgentGrid, AgentTile
       Auth/                 # LoginForm
+    admin/
+      AdminApp.tsx          # AdminShell — viewMode + activeView state
+      hooks/
+        useAdminAgents.ts   # Agent management hook + logAdminAction()
+        useUserMgmt.ts      # User CRUD hook + EA access + logAdminAction()
+      components/
+        AdminBanner.tsx     # Grid/Tile toggle (disabled for non-grid views)
+        AdminNav.tsx        # Left nav — 4 views
+        views/
+          UserMgmtView.tsx  # Full user management UI
+          AgentMgmtView.tsx # Agent activate/deactivate
+          HealthStatusView.tsx
+          PromptWindowView.tsx
     styles/                 # Vanilla CSS (variables, layouts, components)
-    types/index.ts          # Shared TypeScript interfaces
+    types/index.ts          # ALL shared TypeScript interfaces + constants
   vite.config.ts            # Port 6173, proxy /api → :8000
 SPEC.md                     # Full technical specification (source of truth)
 CLAUDE.md                   # This file
+WORKBOOK-Iteration-3.md     # Step-by-step tutorial for Iteration 3
 ```
 
 ---
@@ -55,7 +76,7 @@ source ../appsFrame/bin/activate
 uvicorn app.main:app --reload --port 8000
 ```
 
-### Seed the database (first time or after reset)
+### Seed the database (first time or after reset — safe to re-run)
 ```bash
 cd backend
 source ../appsFrame/bin/activate
@@ -66,10 +87,15 @@ python seed.py
 ```bash
 cd frontend
 npm install        # first time only
-npm run dev        # starts on http://localhost:6173
+npm run dev        # http://localhost:6173
 ```
 
-Default login: `admin` / `admin`
+### Logins
+
+| Username | Password | Role |
+|----------|----------|------|
+| `admin` | `admin` | admin (legacy) |
+| `mike.k` | `Admin1234!` | superuser |
 
 ---
 
@@ -89,18 +115,24 @@ Default login: `admin` / `admin`
 ### Backend
 - **SQLAlchemy 2.x:** Use `DeclarativeBase` from `sqlalchemy.orm` — never the legacy `declarative_base()`.
 - **Timestamps:** Always use `lambda: datetime.now(timezone.utc)` — never `datetime.utcnow()`.
-- **Schema field names:** `ExpertAgentResponse` exposes sub-agents as `specific_sub_agents` (not `sag_sub_agents`). `SystemLogResponse` uses `created_at` (not `timestamp`).
-- **`SubAgent` model:** Does NOT have a `code_name` column in the DB (omission to fix in Iteration 2).
+- **Schema field names:** `ExpertAgentResponse` exposes sub-agents as `specific_sub_agents`. `SystemLogResponse` uses `created_at` (not `timestamp`).
 - **JWT:** `JWT_SECRET_KEY` must be set in `backend/app/.env`. Generate with `openssl rand -hex 32`.
-- **Auth gap:** JWT is issued on login but NOT yet validated on `GET /api/agents/` or `GET /api/logs/`. Those endpoints are currently unauthenticated.
+- **Auth dependency chain:** `require_jwt()` validates JWT and returns payload. `require_superuser()` wraps it and adds a 403 check for role. Both live in `app/api/auth.py` and `app/api/users.py` respectively.
+- **SQLite migration pattern:** `ALTER TABLE ADD COLUMN` (no UNIQUE) + separate `CREATE UNIQUE INDEX` — used for `code_name`, `uid`. Always check `PRAGMA table_info` / `PRAGMA index_list` first.
+- **Idempotent seed:** All seed inserts use `_get_or_create()`. The seed log entry is only written once (existence check before insert).
+- **`uid`:** 8-char UUID hex generated at creation (`uuid.uuid4().hex[:8]`). Immutable after creation. Never set by the frontend.
 
 ### Frontend
 - **All types** live in `src/types/index.ts` — do not scatter interfaces across component files.
 - **Context pattern:** One context per concern — `AuthContext`, `AgentContext`, `ThemeContext`. Do not combine them.
-- **CSS:** Themes live exclusively in `src/styles/variables.css` under `body.light-theme` / `body.dark-theme`. No separate themes file.
-- **Import paths:** Components are one level deeper than before (`components/Layout/`, `components/Agent/`, `components/Auth/`) — context/types imports require `../../`.
+- **CSS:** Themes live exclusively in `src/styles/variables.css` under `body.light-theme` / `body.dark-theme`.
 - **`vite-env.d.ts`** must exist in `src/` for CSS/asset imports to type-check correctly.
-- **Neon blue `#00f0ff`** is used for key heading highlights ("CDAGS" in banner, "AI-Agents" in main heading).
+- **Neon blue `#00f0ff`** is used for key heading highlights ("CDAGS" in banner).
+- **Role short codes:** CHANGE (not CHG), REPORTS (not RPT), GENERAL (not GEN).
+- **Read-only form fields** (Date Created, System UID) use `background: #1a1f2e`, `border: 1px solid transparent`, `color: var(--text-tertiary)` to visually distinguish from editable inputs.
+- **Grid/Tile toggle** is disabled (opacity 0.35, `cursor: not-allowed`) when `activeView` is `user-mgmt` or `prompt-window`.
+- **`logAdminAction()`** lives in both `useAdminAgents.ts` and `useUserMgmt.ts`. It is best-effort — swallows errors so the UI is never blocked.
+- **`useUserMgmt.ts`:** `getEaAccess()` returns data directly (not stored in hook state). It is called on-demand when a row is selected, and cleared immediately on row switch.
 
 ### Git
 - Do not commit: `appsFrame/` (venv), `backend/app/__pycache__/`, `backend/cdags_framework.db`, `frontend/node_modules/`.
@@ -109,32 +141,34 @@ Default login: `admin` / `admin`
 
 ---
 
-## Current State (as of 2026-06-12)
+## Current State (as of 2026-06-13)
 
-### What is complete (Iteration 1)
-- Full React SPA: login, dashboard, agent grid, sidebar, log panel, light/dark theme
-- FastAPI backend: auth (real JWT), agents, logs endpoints
-- SQLAlchemy models: User, ExpertAgent, SubAgent, AgentInteraction, SystemLog
-- 8 Expert Agents seeded in DB with per-agent color themes
+### Iteration 3 — COMPLETE
+
+- **RBAC:** 10 defined roles (see `VALID_ROLES` in `backend/app/schemas/user.py` and `UserRole` type in `frontend/src/types/index.ts`)
+- **Backend:** `/api/users/` — 8 endpoints, all superuser-gated via `require_superuser()`
+- **User model:** `is_active`, `corporate_id`, `uid` added via migrations in `seed.py`
+- **`UserEaAccess` join table:** controls which Expert Agents a `general-user` can access
+- **Frontend hook:** `useUserMgmt.ts` — full CRUD + EA access + audit logging
+- **`UserMgmtView.tsx`:** form + role matrix table + EA access panel + search/filter/sort
+- **`mike.k`** seeded as first superuser (password: `Admin1234!`)
 - TypeScript: zero errors (`tsc --noEmit` passes)
 
-### What is NOT done (known gaps going into Iteration 2)
-1. **`seed.py` is destructive** — calls `drop_all()`, not idempotent
-2. **Sub-agents not seeded** — 5 sub-agents (3 CAG, 2 SAG) and their mappings are missing from DB
-3. **`SubAgent` model missing `code_name` column** — needed for agent engine dispatch
-4. **No `services/agent_engine.py`** — CAG/SAG routing logic not implemented
-5. **No orchestrator** — no `POST /api/orchestrate` endpoint; agents can't be dispatched
-6. **JWT not enforced** on agent/log endpoints
-7. **Frontend doesn't send `Authorization` header** on API calls
-8. **No test suite** — no Pytest tests in `backend/tests/`
+### What is NOT done (known gaps going into Iteration 4)
+1. **`PATCH /api/agents/{id}`** — backend toggle not implemented; UI shows "not yet implemented" toast
+2. **`PromptWindowView`** — placeholder only
+3. **`app/services/`** — agent engine / orchestrator / CAG-SAG routing not implemented
+4. **`POST /api/orchestrate`** — orchestrator endpoint not implemented
+5. **No test suite** — no Pytest tests in `backend/tests/`
+6. **Role-based `/#app`** — non-admin users have no dedicated app shell yet
 
 ---
 
-## Iteration 2 Plan — Orchestrator & Agent Engine
+## Iteration 4 Plan — Orchestrator & Agent Engine
 
-The next development phase implements the MoE execution layer. See `SPEC.md` Section 5 for full detail.
+The next development phase implements the MoE execution layer and wires the remaining admin UI actions. See `SPEC.md` Section 5 for full detail.
 
-### Files to create
+### Key files to create
 | File | Purpose |
 |------|---------|
 | `backend/app/services/__init__.py` | Package init |
@@ -145,12 +179,9 @@ The next development phase implements the MoE execution layer. See `SPEC.md` Sec
 | `backend/tests/test_auth.py` | Auth endpoint tests |
 | `backend/tests/test_agents.py` | Agent + orchestrate endpoint tests |
 
-### Files to fix
+### Key files to fix/extend
 | File | Fix needed |
 |------|-----------|
-| `backend/seed.py` | Make idempotent; add 5 sub-agents and SAG mappings |
-| `backend/app/models/agent.py` | Add `code_name` column to `SubAgent` |
-| `backend/app/api/agents.py` | Add JWT auth dependency |
-| `backend/app/api/logs.py` | Add JWT auth dependency |
-| `frontend/src/context/AuthContext.tsx` | Attach `Authorization: Bearer` header on all API calls |
-| `frontend/src/context/AgentContext.tsx` | Pass auth header on agent/log fetches |
+| `backend/app/api/agents.py` | Add `PATCH /{id}` endpoint to toggle `is_active` |
+| `frontend/src/admin/components/views/AgentMgmtView.tsx` | Wire Activate/Deactivate to `PATCH /api/agents/{id}` |
+| `frontend/src/admin/components/views/PromptWindowView.tsx` | Implement prompt/chat UI |
