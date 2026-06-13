@@ -1,9 +1,10 @@
 # Technical Specification: AI-Agent Application Framework (CDAGS)
 
-**Project:** CDAGS AI-Agents: OT-IT Convergence & Cybersecurity  
-**Pattern:** Mixture of Experts (MoE)  
-**Status:** Iteration 1 COMPLETE — Iteration 2 (Orchestrator + Agent Engine) IN PLANNING  
-**Last updated:** 2026-06-12
+**Project:** CDAGS AI-Agents: OT-IT Convergence & Cybersecurity
+**Pattern:** Mixture of Experts (MoE)
+**Status:** Iteration 2 (Admin App) COMPLETE — Iteration 3 IN PLANNING
+**Last updated:** 2026-06-13
+**Branch:** `iteration-2`
 
 ---
 
@@ -63,7 +64,7 @@ graph TD
 
 ### 1.1 The Mixture of Experts (MoE) Pattern
 
-1. **Orchestrator (Router)**: Receives requests, routes them to the correct Expert Agent, enforces CAG/SAG access rules, and maintains global system state. *(Iteration 2 target)*
+1. **Orchestrator (Router)**: Receives requests, routes them to the correct Expert Agent, enforces CAG/SAG access rules, and maintains global system state. *(Iteration 3 target)*
 2. **Expert Agents**: Domain-specific agents with deep functional knowledge of one OT domain. Each has a `code_name`, `color_theme`, and a list of authorized SAG sub-agents.
 3. **Sub-Agents**: Utility agents in two groups:
    - **CAG (Common Agent Group)**: Available to all Expert Agents implicitly (`group_type = "CAG"`). Never stored in the mapping table.
@@ -80,8 +81,8 @@ graph TD
 
 ## 2. Backend Technical Specification (Python & FastAPI)
 
-**Stack:** Python 3.10+, FastAPI, SQLAlchemy 2.x, SQLite, passlib/bcrypt, python-jose JWT  
-**Virtual environment:** `appsFrame/` (root-level venv)  
+**Stack:** Python 3.10+, FastAPI, SQLAlchemy 2.x, SQLite, passlib/bcrypt, python-jose JWT
+**Virtual environment:** `appsFrame/` (root-level venv — never committed)
 **Run directory:** `backend/`
 
 ### 2.1 Backend Directory Structure — Current State
@@ -105,20 +106,21 @@ backend/
 │   │   └── user.py             # UserLogin, LoginResponse, UserCreate, UserResponse
 │   └── api/
 │       ├── __init__.py
-│       ├── auth.py             # POST /api/auth/login — bcrypt verify + HS256 JWT
-│       ├── agents.py           # GET /api/agents/, POST /api/agents/{id}/select
-│       └── logs.py             # GET /api/logs/, POST /api/logs/
-├── seed.py                     # DB seed — drops and recreates tables, seeds 8 Expert Agents
-│                               # WARNING: currently destructive (drop_all). Non-idempotent.
+│       ├── auth.py             # POST /api/auth/login + require_jwt() dependency
+│       ├── agents.py           # GET /api/agents/, POST /api/agents/{id}/select (JWT enforced)
+│       └── logs.py             # GET /api/logs/, POST /api/logs/ (JWT enforced)
+├── seed.py                     # Idempotent DB seed — _get_or_create() pattern, no drop_all
+│                               # Auto-migrates sub_agents.code_name via ALTER TABLE + index
+│                               # Seeds 8 Expert Agents + 5 Sub-Agents + 2 SAG mappings
 ├── database_test.py            # Manual DB connectivity test script
 └── requirements.txt            # Python dependencies
 ```
 
-> **Not yet built (Iteration 2):**
+> **Not yet built (Iteration 3):**
 > - `app/services/` — agent engine, CAG/SAG routing logic
-> - `tests/` — Pytest test suite
-> - `run.py` — convenience entry point
-> - `app/config.py` — centralized config/env management
+> - `app/api/orchestrator.py` — POST /api/orchestrate endpoint
+> - `backend/tests/` — Pytest test suite
+> - `PATCH /api/agents/{id}` — activate/deactivate endpoint
 
 ### 2.2 Database Schema — Current State
 
@@ -146,6 +148,7 @@ erDiagram
     SUB_AGENTS {
         int id PK
         string name
+        string code_name
         string description
         string group_type "CAG or SAG"
         datetime created_at
@@ -180,19 +183,6 @@ erDiagram
     EXPERT_AGENTS ||--o{ AGENT_INTERACTIONS : "initiates"
     SUB_AGENTS ||--o{ AGENT_INTERACTIONS : "handles"
 ```
-
-**Key deviations from original SPEC:**
-
-| Item | Original SPEC | Actual implementation |
-|------|--------------|----------------------|
-| `SYSTEM_LOGS.timestamp` column | `timestamp` | `created_at` |
-| `SubAgent.code_name` field | present | **absent** — model has no `code_name` column |
-| `ExpertAgentResponse.sag_sub_agents` | field name `sag_sub_agents` | field name `specific_sub_agents` |
-| `AGENT_INTERACTIONS` table | not in original SPEC | **added** — captures expert↔sub-agent calls |
-| `User.email` field | absent | **added** — `LoginResponse` returns `email` |
-| `updated_at` timestamps | absent | **added** on all models |
-| Auth | mock `admin`/`admin`, returns hardcoded token | Real bcrypt + HS256 JWT via `JWT_SECRET_KEY` env var |
-| `LogLevel` values | `INFO,WARNING,ERROR,SUCCESS` | `DEBUG,INFO,WARNING,ERROR,SUCCESS` (DEBUG added) |
 
 ### 2.3 Pydantic Schemas — Current State
 
@@ -247,7 +237,7 @@ class SystemLogCreate(BaseModel):
 
 class SystemLogResponse(BaseModel):
     id: int
-    created_at: datetime          # NOTE: field is created_at, not timestamp
+    created_at: datetime          # field is created_at, not timestamp
     level: LogLevel
     source: str
     message: str
@@ -266,7 +256,7 @@ class LoginResponse(BaseModel):
     token: str
     id: int
     username: str
-    email: str                    # NOTE: email is included in login response
+    email: str
     role: str
 ```
 
@@ -274,20 +264,37 @@ class LoginResponse(BaseModel):
 
 | Method | Endpoint | Auth | Response | Description |
 |--------|----------|------|----------|-------------|
-| `POST` | `/api/auth/login` | None | `LoginResponse` | bcrypt verify + HS256 JWT. Credentials: `admin`/`admin` |
-| `GET` | `/api/agents/` | None* | `List[ExpertAgentResponse]` | All active Expert Agents with their SAG `specific_sub_agents` |
-| `POST` | `/api/agents/{id}/select` | None* | `AgentSelectResponse` | Registers selection, writes `USER` log entry |
-| `GET` | `/api/logs/` | None* | `List[SystemLogResponse]` | Recent logs, newest-first. Query param: `limit` (1–500, default 50) |
-| `POST` | `/api/logs/` | None* | `SystemLogResponse` | Add a manual log entry |
+| `POST` | `/api/auth/login` | None | `LoginResponse` | bcrypt verify + HS256 JWT |
+| `GET` | `/api/agents/` | JWT required | `List[ExpertAgentResponse]` | All Expert Agents with SAG `specific_sub_agents` |
+| `POST` | `/api/agents/{id}/select` | JWT required | `AgentSelectResponse` | Registers selection, writes USER log entry |
+| `GET` | `/api/logs/` | JWT required | `List[SystemLogResponse]` | Recent logs, newest-first. `?limit=` (1–500, default 50) |
+| `POST` | `/api/logs/` | JWT required | `SystemLogResponse` | Add a manual log entry (used for audit logging from admin UI) |
 | `GET` | `/health` | None | `{"status": "ok"}` | Health check |
 
-> *Auth header not yet enforced on these endpoints — JWT is issued but not validated on incoming requests. Iteration 2 target.
+> **Pending endpoint (Iteration 3):** `PATCH /api/agents/{id}` — toggle `is_active` on an ExpertAgent. The Admin UI Activate/Deactivate buttons are wired and awaiting this endpoint.
 
-### 2.5 Database Seed Data
+### 2.5 Auth Implementation
+
+`require_jwt()` is a FastAPI `Security` dependency in `app/api/auth.py`:
+
+```python
+_bearer = HTTPBearer()
+def require_jwt(credentials: HTTPAuthorizationCredentials = Security(_bearer)) -> dict:
+    try:
+        payload = jwt.decode(credentials.credentials, _JWT_SECRET, algorithms=[_JWT_ALGORITHM])
+        return payload
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token",
+                            headers={"WWW-Authenticate": "Bearer"})
+```
+
+All protected endpoints declare `_token: dict = Depends(require_jwt)`. The frontend detects 401 responses and calls `logout()` automatically, clearing localStorage and redirecting to login.
+
+### 2.6 Database Seed Data
 
 Run: `cd backend && python seed.py`
 
-> **WARNING:** `seed.py` currently calls `Base.metadata.drop_all()` — it **destroys all existing data** on every run. It is **not idempotent**. Fix planned for Iteration 2.
+`seed.py` is idempotent — uses `_get_or_create()` pattern, no `drop_all()`. Safe to re-run. Auto-migrates `sub_agents.code_name` column if missing via `ALTER TABLE` + `CREATE UNIQUE INDEX`.
 
 #### Expert Agents (8 records)
 
@@ -302,19 +309,17 @@ Run: `cd backend && python seed.py`
 | OT Plant Security Incident Manager | `ot_plant_security_incident_manager` | `#4338ca` |
 | OT Plant Analytics & Report Manager | `ot_plant_analytics_report_manager` | `#0369a1` |
 
-#### Sub-Agents — NOT YET SEEDED
-
-The 5 sub-agents below are defined in the SPEC but **`seed.py` does not create them**. The `expert_sub_agent_mapping` table is empty. This must be fixed before Iteration 2 work begins.
+#### Sub-Agents (5 records, seeded)
 
 | Name | code_name | group_type | Authorized Expert Agents |
 |------|-----------|------------|--------------------------|
-| Email Agent | `email_agent` | `CAG` | All (implicit) |
+| Email Agent | `email_agent` | `CAG` | All (implicit — not in mapping table) |
 | Alert Notification Agent | `alert_notification_agent` | `CAG` | All (implicit) |
 | Trouble Ticket Agent | `trouble_ticket_agent` | `CAG` | All (implicit) |
 | Modbus Protocol Agent | `modbus_protocol_agent` | `SAG` | OT Plant Data Manager |
 | Safety Compliance Agent | `safety_compliance_agent` | `SAG` | OT Plant Asset Register Manager |
 
-### 2.6 Environment Variables
+### 2.7 Environment Variables
 
 Required in `backend/app/.env`:
 
@@ -328,91 +333,199 @@ JWT_EXPIRE_MINUTES=60
 
 ## 3. Frontend Technical Specification (React & TypeScript)
 
-**Stack:** React 19, TypeScript, Vite 8, Vanilla CSS  
-**Dev port:** `6173` (strict — fails if occupied)  
-**API proxy:** `/api/*` → `http://localhost:8000`
+**Stack:** React 19, TypeScript, Vite 8, Vanilla CSS
+**Dev port:** `6173` (strict — fails if occupied)
+**API proxy:** `/api/*` → `http://localhost:8000`, `/health` → `http://localhost:8000`
 
 ### 3.1 Frontend Directory Structure — Current State
 
 ```
 frontend/
-├── index.html                      # HTML shell, favicon → /favicon.svg
+├── index.html
 ├── package.json
-├── tsconfig.json                   # Root TS config — includes "types": ["vite/client"]
-├── tsconfig.app.json               # Vite build TS config
-├── tsconfig.node.json
-├── vite.config.ts                  # Port 6173, strictPort, proxy /api → :8000
-├── eslint.config.js
-├── FRONTEND_ARCHITECTURE.md        # Full frontend developer reference
+├── tsconfig.json
+├── tsconfig.app.json
+├── vite.config.ts                  # Port 6173, strictPort, proxy /api + /health → :8000
 ├── public/
 │   ├── favicon.svg
 │   ├── icons.svg
-│   └── bg-dark-hex.jpg             # Dark hex-mesh texture (available, not active)
+│   └── bg-dark-hex.jpg
 └── src/
     ├── main.tsx
-    ├── App.tsx                     # Provider tree + AuthCheckGate + DashboardShell
-    ├── vite-env.d.ts               # /// <reference types="vite/client" />
+    ├── App.tsx                     # Provider tree + AuthCheckGate (hash router)
+    ├── vite-env.d.ts
     ├── types/
-    │   └── index.ts                # UserSession, SubAgent, ExpertAgent, SystemLog
+    │   └── index.ts                # UserSession, SubAgent, ExpertAgent, SystemLog,
+    │                               #   AdminNavView, ViewMode
     ├── context/
     │   ├── AuthContext.tsx         # Session state, login (JWT), logout
-    │   ├── AgentContext.tsx        # Agent list, active selection, log polling (2s)
+    │   ├── AgentContext.tsx        # Agent list, active selection, log polling (2s),
+    │   │                           #   visibility-aware (Page Visibility API),
+    │   │                           #   Authorization header on all fetches,
+    │   │                           #   401 → auto-logout
     │   └── ThemeContext.tsx        # Light/dark toggle, body class, localStorage
     ├── components/
     │   ├── Layout/
-    │   │   ├── Banner.tsx          # Logo, title (27px), user, live clock, theme toggle
+    │   │   ├── Banner.tsx          # Logo, title, user, live clock, theme toggle,
+    │   │   │                       #   ⚙ Admin button (admin role only → /#admin)
     │   │   ├── Sidebar.tsx         # Agent list, active highlight
     │   │   ├── LogPanel.tsx        # Live log console, auto-scroll, newest-at-bottom
-    │   │   └── Footer.tsx          # "Powered by CDAGS © 2026"
+    │   │   └── Footer.tsx
     │   ├── Agent/
-    │   │   ├── AgentGrid.tsx       # auto-fit grid of agent tiles
+    │   │   ├── AgentGrid.tsx       # auto-fit grid of agent tiles (grid view, locked)
     │   │   └── AgentTile.tsx       # Per-agent color border + glow, active scale
     │   └── Auth/
-    │       └── LoginForm.tsx       # Login card overlay
+    │       └── LoginForm.tsx
+    ├── admin/                      # Admin App shell (hash: /#admin)
+    │   ├── AdminApp.tsx            # AdminShell — holds viewMode state, renders admin layout
+    │   ├── hooks/
+    │   │   └── useAdminAgents.ts   # useAdminAgents() + useHealthStatus() + logAdminAction()
+    │   └── components/
+    │       ├── AdminBanner.tsx     # Admin banner — Grid/Tile toggle, ← Dashboard, Sign Out
+    │       ├── AdminNav.tsx        # Left nav — 4 views
+    │       ├── AdminFooter.tsx
+    │       └── views/
+    │           ├── UserMgmtView.tsx        # Placeholder
+    │           ├── AgentMgmtView.tsx       # Agent table/tile + Activate/Deactivate buttons
+    │           ├── PromptWindowView.tsx    # Placeholder
+    │           └── HealthStatusView.tsx   # Backend health + agent status table/tile
     └── styles/
         ├── variables.css           # :root tokens + body.light-theme + body.dark-theme
         ├── global.css              # Reset, imports variables/layouts/components
-        ├── layouts.css             # Full-viewport CSS grid (banner/sidebar/main/logs/footer)
-        └── components.css          # Component classes (.agent-tile, .sidebar-item, etc.)
+        ├── layouts.css             # Dashboard CSS grid + admin CSS grid
+        └── components.css          # .agent-tile, .agent-grid, .agent-grid-tile, etc.
 ```
 
-> **Removed vs original SPEC:** `src/index.css`, `src/App.css` (scaffold), `src/themes.css` (merged into `variables.css`), empty `src/pages/`, `src/api/`, `src/store/` directories.
+### 3.2 Hash-Based Dual-App Routing
 
-### 3.2 UI Design System
+`App.tsx` dispatches between two app shells based on `window.location.hash`:
 
-#### Banner
-- Title: **"CDAGS AI-Agents: OT-IT Convergence & Cybersecurity"** — `27px`, `fontWeight: 800`
-- "CDAGS" colored `#00f0ff` (neon blue)
-- Logo badge: circular `D` in `--active-highlight` blue
-
-#### Main Content Heading
-- **"AI-Agents: OT Operational Functions"** — "AI-Agents" colored `#00f0ff` (neon blue)
-
-#### Agent Tile Colors (seeded from DB)
-1. Slate Grey `#334155` — UI Color Palate Manager
-2. Navy Blue `#1e3a8a` — OT Plant Data Manager
-3. Deep Teal `#0f766e` — OT Plant Asset Register Manager
-4. Forest Green `#15803d` — OT Plant Asset Risk Register Manager
-5. Deep Crimson `#991b1b` — OT Plant Change Management Manager
-6. Dark Gold/Amber `#b45309` — OT Plant Logging & Monitoring Manager
-7. Purple/Indigo `#4338ca` — OT Plant Security Incident Manager
-8. Steel Blue `#0369a1` — OT Plant Analytics & Report Manager
-
-#### CSS Grid Layout
 ```
-rows:    70px  1fr  20vh  30px
-columns: 280px 1fr
-areas:   "banner banner" / "sidebar main" / "logs logs" / "footer footer"
+/#          →  DashboardShell  (read-only agent grid, log panel)
+/#admin     →  AdminShell      (admin-only, role-gated in UI)
 ```
 
-### 3.3 Known Frontend Gaps (Iteration 2 Targets)
+`AuthCheckGate` listens to `hashchange` events and re-renders on navigation. No react-router-dom dependency. Both shells share the same React context providers (`AuthContext`, `ThemeContext`).
 
-| # | Gap |
-|---|-----|
-| 1 | JWT token stored in `localStorage` but never sent as `Authorization: Bearer` header |
-| 2 | No React error boundary — unhandled errors crash the full app |
-| 3 | Log polling runs unconditionally — should pause when tab is backgrounded |
-| 4 | No frontend test suite |
+### 3.3 Dashboard App (/#)
+
+- Read-only view of all 8 Expert Agents in grid layout (locked — no tile toggle on dashboard)
+- Live log console polling every 2s (pauses when tab is hidden via Page Visibility API)
+- Sidebar shows agent list with active selection
+- Banner shows `⚙ Admin` button only for `role === 'admin'` users
+
+### 3.4 Admin App (/#admin)
+
+Admin-only driver app for managing the CDAGS framework.
+
+#### Layout
+```
+rows:    var(--banner-height)  1fr  var(--footer-height)
+columns: 240px  1fr
+areas:   "admin-banner admin-banner"
+         "admin-nav    admin-main"
+         "admin-footer admin-footer"
+```
+No log panel in admin layout.
+
+#### Left Nav Views
+
+| View | Key | Status |
+|------|-----|--------|
+| User Management | `user-mgmt` | Placeholder |
+| AI-Agent Management | `agent-mgmt` | Implemented |
+| Prompt Window | `prompt-window` | Placeholder |
+| Health Status | `health-status` | Implemented |
+
+#### Grid / Tile Toggle
+
+`viewMode: 'grid' | 'tile'` state is held in `AdminShell` and passed as props to `AdminBanner`, `AgentMgmtView`, and `HealthStatusView`. The dashboard is locked to grid — toggle only appears in admin banner.
+
+#### AI-Agent Management View
+
+- **Grid mode**: table layout — agent name, color swatch, Active/Inactive badge, sub-agents list, action button
+- **Tile mode**: card layout — color border, agent name, Active/Inactive badge, action button
+- **Activate button**: neon green (`#00ff88`), green border (`#15803d`)
+- **Deactivate button**: neon orange (`#ff6a00`), dark orange border (`#c2410c`)
+- **Confirmation dialog**: `window.confirm()` fires before any toggle action, names the agent and warns the action is logged
+- **Audit logging**: every confirmed action posts to `POST /api/logs/` with `level: "INFO"`, `source: "USER"`, message includes username + agent name + id
+- **Toggle itself**: NOT yet implemented — shows toast "Toggle not yet implemented" pending `PATCH /api/agents/{id}` endpoint
+
+#### Health Status View
+
+- Backend API health check: `GET /health` — shows green/red dot + status string
+- Expert Agent status: reads from `GET /api/agents/`
+- **Grid mode**: table — agent name, color swatch, Active/Inactive dot, type
+- **Tile mode**: cards — color border, agent name, Active/Inactive dot
+
+### 3.5 TypeScript Types (`src/types/index.ts`)
+
+```typescript
+export interface UserSession {
+  id: number;
+  token: string;
+  username: string;
+  role: string;
+}
+
+export interface SubAgent {
+  id: number;
+  name: string;
+  description?: string;
+  group_type: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface ExpertAgent {
+  id: number;
+  name: string;
+  description?: string;
+  color_theme: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at?: string;
+  specific_sub_agents: SubAgent[];
+}
+
+export interface SystemLog {
+  id: number;
+  created_at: string;
+  level: string;
+  source: string;
+  message: string;
+  metadata_json?: string;
+}
+
+export type AdminNavView = 'user-mgmt' | 'agent-mgmt' | 'prompt-window' | 'health-status';
+export type ViewMode = 'grid' | 'tile';
+```
+
+### 3.6 CSS Design System
+
+#### Tokens (variables.css)
+- `--active-highlight`: neon blue `#3b82f6` (light) / `#60a5fa` (dark)
+- `--bg-primary`, `--bg-secondary`, `--bg-tertiary`: layered backgrounds
+- `--border-color`, `--text-primary`, `--text-secondary`, `--text-tertiary`
+- `--banner-height`: `60px`, `--footer-height`: `30px`
+
+#### Neon accents
+- `#00f0ff` — "CDAGS" in both banners, "AI-Agents" in main heading
+- `#00ff88` — Activate button
+- `#ff6a00` — Deactivate button
+
+#### Agent Tile Colors (from DB `color_theme`)
+
+| Agent | Color |
+|-------|-------|
+| UI Color Palate Manager | Slate Grey `#334155` |
+| OT Plant Data Manager | Navy Blue `#1e3a8a` |
+| OT Plant Asset Register Manager | Deep Teal `#0f766e` |
+| OT Plant Asset Risk Register Manager | Forest Green `#15803d` |
+| OT Plant Change Management Manager | Deep Crimson `#991b1b` |
+| OT Plant Logging & Monitoring Manager | Dark Amber `#b45309` |
+| OT Plant Security Incident Manager | Purple/Indigo `#4338ca` |
+| OT Plant Analytics & Report Manager | Steel Blue `#0369a1` |
 
 ---
 
@@ -461,9 +574,14 @@ All agent actions, user interactions, and system events are written to `system_l
 
 | Source | Used for |
 |--------|----------|
-| `USER` | UI clicks, tile selections, manual inputs |
+| `USER` | UI clicks, tile selections, admin actions (audit trail) |
 | `SYSTEM` | Startup, DB operations, theme changes |
 | `AGENT` | Expert→sub-agent calls, completions, routing errors |
+
+Admin UI actions (Activate/Deactivate button clicks) are posted with `source: "USER"`, `level: "INFO"`, message format:
+```
+Admin "<username>" attempted to <activate|deactivate> agent "<name>" (id=<id>).
+```
 
 ---
 
@@ -473,9 +591,9 @@ All agent actions, user interactions, and system events are written to `system_l
 
 | Task | Status |
 |------|--------|
-| SQLite models (User, ExpertAgent, SubAgent, AgentInteraction, SystemLog) | ✓ Done |
+| SQLite models: User, ExpertAgent, SubAgent, AgentInteraction, SystemLog | ✓ Done |
 | FastAPI app with CORS, lifespan DB init | ✓ Done |
-| Auth endpoint — real bcrypt + JWT | ✓ Done |
+| Auth endpoint — real bcrypt + HS256 JWT | ✓ Done |
 | Agent list + select endpoints | ✓ Done |
 | Log create + fetch endpoints | ✓ Done |
 | React SPA — full layout (Banner/Sidebar/Grid/LogPanel/Footer) | ✓ Done |
@@ -484,82 +602,92 @@ All agent actions, user interactions, and system events are written to `system_l
 | Agent tile per-color border and glow | ✓ Done |
 | TypeScript — zero `tsc --noEmit` errors | ✓ Done |
 
-### Iteration 1 — Remaining Deficiencies (fix before or during Iteration 2)
+### Iteration 2 — COMPLETE ✓
 
-| # | Issue | Priority |
-|---|-------|----------|
-| 1 | `seed.py` is destructive (`drop_all`) and not idempotent | High |
-| 2 | Sub-agents (5 records) not seeded; mapping table empty | High |
-| 3 | `SubAgent` model missing `code_name` column | High |
-| 4 | JWT not validated on `GET /api/agents/` and `GET /api/logs/` | Medium |
-| 5 | Frontend does not send `Authorization` header | Medium |
-| 6 | No Pytest test suite | Medium |
+| Task | Status |
+|------|--------|
+| `seed.py` made idempotent — `_get_or_create()`, no `drop_all` | ✓ Done |
+| 5 sub-agents seeded (3 CAG, 2 SAG) + 2 SAG mappings | ✓ Done |
+| `SubAgent.code_name` column added (ALTER TABLE + UNIQUE INDEX) | ✓ Done |
+| `require_jwt()` dependency — JWT enforced on all protected endpoints | ✓ Done |
+| Frontend sends `Authorization: Bearer` header on all API calls | ✓ Done |
+| Frontend 401 → auto-logout (clears stale token from localStorage) | ✓ Done |
+| Log polling pauses when browser tab is hidden (Page Visibility API) | ✓ Done |
+| `.gitignore` fixed — venv, pycache, .db, node_modules excluded | ✓ Done |
+| Admin App shell at `/#admin` (hash-based dual-app routing) | ✓ Done |
+| Admin banner, left nav (4 views), footer | ✓ Done |
+| `⚙ Admin` button in dashboard banner (admin role only) | ✓ Done |
+| Grid/Tile view toggle in admin banner (affects agent-mgmt + health-status) | ✓ Done |
+| AgentMgmtView — grid + tile layouts, Activate/Deactivate buttons | ✓ Done |
+| HealthStatusView — backend health check + agent status, grid + tile layouts | ✓ Done |
+| Deactivate button: neon orange; Activate button: neon green | ✓ Done |
+| Confirm dialog before Activate/Deactivate | ✓ Done |
+| Audit logging via `POST /api/logs/` on every admin action | ✓ Done |
+| `logAdminAction()` helper in `useAdminAgents.ts` | ✓ Done |
 
-### Iteration 2 — PLANNED (Next)
+### Iteration 3 — PLANNED (Next)
 
-Target: implement the MoE execution layer.
+The following items are planned for the next development phase. Priorities and scope to be confirmed before implementation begins.
 
-| Component | Description |
-|-----------|-------------|
-| `app/services/agent_engine.py` | `get_available_sub_agents(expert_agent)` — unions CAG pool + agent's SAG entries. `dispatch(caller, target, payload)` — routes call, validates authorization, persists to `agent_interactions`, returns structured response |
-| `app/api/orchestrator.py` | `POST /api/orchestrate` — accepts a task request, selects the correct Expert Agent, dispatches via agent engine |
-| `app/services/orchestrator.py` | Routing logic — scores/selects Expert Agent based on request domain |
-| Seed fix | Make `seed.py` idempotent; add 5 sub-agents and SAG mappings |
-| Auth middleware | JWT validation dependency on protected endpoints |
-| Frontend auth header | Attach `Authorization: Bearer <token>` on all API calls |
-| Test suite | `backend/tests/` — Pytest coverage for all endpoints and engine logic |
+#### Backend
 
+| Task | Priority | Notes |
+|------|----------|-------|
+| `PATCH /api/agents/{id}` — toggle `is_active` on ExpertAgent | High | Unblocks admin Activate/Deactivate UI |
+| `app/services/agent_engine.py` — `get_available_sub_agents()`, `dispatch()` | High | Core MoE execution layer |
+| `app/services/orchestrator.py` — Expert Agent routing/scoring logic | High | Selects EA from request domain |
+| `app/api/orchestrator.py` — `POST /api/orchestrate` endpoint | High | Entry point for agent task execution |
+| `backend/tests/` — Pytest suite (auth, agents, orchestrate) | Medium | No tests exist yet |
+| `app/config.py` — centralized env/config management | Low | Currently loaded inline |
 
+#### Frontend
 
+| Task | Priority | Notes |
+|------|----------|-------|
+| Wire Activate/Deactivate to `PATCH /api/agents/{id}` | High | Currently shows "not implemented" toast |
+| UserMgmtView — list users, role display | Medium | Placeholder currently |
+| PromptWindowView — chat/prompt interface to orchestrator | Medium | Placeholder currently |
+| React error boundary | Low | Unhandled errors crash full app |
+| Frontend test suite | Low | No tests exist yet |
 
+#### Architecture (Future Consideration)
 
-# Iteration 2 -- Phase 1: Admin App Frontend
-
-✻ Brewed for 8s
-
-❯ lets wait on Track 2 and consider planning to add few critical functions in the "admin" app later on we will have non-admin app for users whose access will be based on roles or RBAC principles. Also a very,     
-  very key function I want to add is for each EA to recieve and email via an interface or email gateway (opensource alternative?) and to send an email response with a tiny URL like reference to the user and/or    
-  make the tine uRL available in the user's window which is available in next login by the user.                                                                                                                     
-
-⏺ These are significant architectural decisions worth thinking through carefully before planning. Let me make sure I understand the scope:
-  ⎿  Interrupted · What should Claude do instead?
-
-❯ first tell me if the above is good design thinking approach or you have better alternative design. I will then write a detailed description like a SPEC.md extension so you can use that to build your plan.       
-
-⏺ Good instincts overall — here's my honest assessment of each piece:
-
-  Role-based user app (non-admin) — solid
-  Separating admin from user-facing app by role is standard practice. Your /#admin hash approach extends naturally — /#app for the user shell, gated by role from the JWT payload. The User model already has a role
-  field, so RBAC enforcement is already partially in place. Good foundation.
-
-  Email-in / Email-out per Expert Agent — this is the most architecturally significant piece
-
-  Your instinct to use an open-source email gateway is right. The two strongest options:
-
-  - Postal — full self-hosted MTA, API-driven, handles inbound + outbound, webhooks on receive. Production-grade but heavier to run.
-  - Mailpit (dev) / Stalwart (prod) — lighter alternatives. Stalwart is a modern all-in-one mail server with a REST API.
-
-  For your use case (each EA has its own inbound address like ot-plant-data@cdags.local, receives email, dispatches to the agent engine, replies), Postal or Stalwart are the best fits. Both expose webhooks on
-  inbound mail — clean integration with FastAPI.
-
-  Tiny URL / persistent result reference — good idea, one design question
-
-  The concept is sound: agent processes email → generates a response → creates a short reference link → stores it → user sees it on next login. The question is whether the tiny URL points to:
-
-  1. A result stored inside your own DB (a new AgentResult table, short UUID key) — simpler, self-contained, no external dependency
-  2. An external URL shortener — unnecessary complexity for an internal system
-
-  Option 1 is clearly better here. A GET /r/{short_id} endpoint returns the stored result. The short ID is a 8-char UUID fragment. No external service needed.
-
-  My one architectural suggestion:
-
-  Before you write the SPEC extension, consider naming the email-to-agent flow explicitly as the "Email Sub-Agent" — because it maps directly onto the Email Agent (CAG sub-agent) already defined in your
-  architecture. Inbound email triggers the orchestrator → selects the Expert Agent → processes → Email Agent sends reply with the result link. This keeps it fully within the MoE pattern you already designed.
+| Topic | Notes |
+|-------|-------|
+| Role-based user app at `/#app` | Non-admin users with RBAC-gated views, separate from `/#admin` |
+| Email gateway integration | Inbound email per Expert Agent (Postal or Stalwart), webhook → orchestrator |
+| Result short-link system | `GET /r/{short_id}` — agent result stored in DB, tiny URL returned in email reply |
+| RBAC enforcement on backend | Role checked inside `require_jwt()` or per-endpoint; currently only role is stored, not enforced |
 
 ---
-  Go ahead and write the SPEC extension — with that framing in mind, I'll be able to build a precise plan from it.
 
-✻ Baked for 17s
+## 6. Running the Project
 
-※ recap: Building a CDAGS AI-Agent framework with a React frontend and FastAPI backend. Track 1 fixes are done and the admin app is live. Next: user writes a SPEC extension describing the email gateway and 
-  role-based user app before we plan Track 2.
+### Backend
+```bash
+cd backend
+source ../appsFrame/bin/activate
+uvicorn app.main:app --reload --port 8000
+```
+
+### Seed the database (first time or after reset — safe to re-run)
+```bash
+cd backend
+source ../appsFrame/bin/activate
+python seed.py
+```
+
+### Frontend
+```bash
+cd frontend
+npm install        # first time only
+npm run dev        # starts on http://localhost:6173
+```
+
+Default login: `admin` / `admin`
+
+### TypeScript check (run before every commit)
+```bash
+cd frontend
+npx tsc --noEmit
+```
