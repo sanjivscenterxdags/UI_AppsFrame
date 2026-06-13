@@ -33,3 +33,5 @@ export interface SystemLog {
   message: string;
   metadata_json?: string;
 }
+
+export type AdminNavView = 'user-mgmt' | 'agent-mgmt' | 'prompt-window' | 'health-status';

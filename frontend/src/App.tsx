@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { AdminShell } from './admin/AdminApp';
 import { AgentProvider } from './context/AgentContext';
 import { LoginForm } from './components/Auth/LoginForm';
 import { Banner } from './components/Layout/Banner';
@@ -29,8 +30,17 @@ const DashboardShell: React.FC = () => {
 
 const AuthCheckGate: React.FC = () => {
   const { session } = useAuth();
-  // Return login page if not authenticated, else load main framework dashboard
-  return session ? <DashboardShell /> : <LoginForm />;
+  const [hash, setHash] = useState(window.location.hash);
+
+  useEffect(() => {
+    const onHash = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  if (!session) return <LoginForm />;
+  if (hash === '#admin') return <AdminShell />;
+  return <DashboardShell />;
 };
 
 const App: React.FC = () => {

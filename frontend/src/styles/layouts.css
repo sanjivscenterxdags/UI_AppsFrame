@@ -62,3 +62,58 @@
   font-size: 11px;
   color: var(--text-tertiary);
 }
+
+/* ── Admin App Layout ──────────────────────────────────────────────── */
+.admin-container {
+  display: grid;
+  grid-template-rows: var(--banner-height) 1fr var(--footer-height);
+  grid-template-columns: 240px 1fr;
+  grid-template-areas:
+    "admin-banner admin-banner"
+    "admin-nav    admin-main"
+    "admin-footer admin-footer";
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  transition: background-color var(--transition-speed), color var(--transition-speed);
+}
+
+.admin-banner {
+  grid-area: admin-banner;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+.admin-nav {
+  grid-area: admin-nav;
+  background-color: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  padding: 20px 16px;
+  overflow-y: auto;
+}
+
+.admin-main {
+  grid-area: admin-main;
+  padding: 24px;
+  overflow-y: auto;
+  background-color: var(--bg-primary);
+}
+
+.admin-footer {
+  grid-area: admin-footer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
