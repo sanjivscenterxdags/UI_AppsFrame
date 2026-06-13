@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { ViewMode } from '../../types';
+import { ViewMode, AdminNavView } from '../../types';
 
 interface AdminBannerProps {
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
+  activeView: AdminNavView;
 }
 
-export const AdminBanner: React.FC<AdminBannerProps> = ({ viewMode, setViewMode }) => {
+export const AdminBanner: React.FC<AdminBannerProps> = ({ viewMode, setViewMode, activeView }) => {
+  const toggleDisabled = activeView === 'user-mgmt' || activeView === 'prompt-window';
   const { session, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [dateTime, setDateTime] = useState(new Date());
@@ -48,20 +50,23 @@ export const AdminBanner: React.FC<AdminBannerProps> = ({ viewMode, setViewMode 
           {theme === 'light' ? '🌙' : '☀️'}
         </button>
 
-        {/* Grid / Tile view toggle */}
-        <div style={{ display: 'flex', border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
+        {/* Grid / Tile view toggle — disabled for views that don't support it */}
+        <div
+          title={toggleDisabled ? 'Grid/Tile toggle not available for this view' : undefined}
+          style={{ display: 'flex', border: `1px solid ${toggleDisabled ? 'var(--border-color)' : 'var(--border-color)'}`, borderRadius: '6px', overflow: 'hidden', opacity: toggleDisabled ? 0.35 : 1 }}>
           {(['grid', 'tile'] as const).map((mode) => (
             <button
               key={mode}
-              onClick={() => setViewMode(mode)}
+              disabled={toggleDisabled}
+              onClick={() => !toggleDisabled && setViewMode(mode)}
               style={{
                 padding: '5px 14px',
                 border: 'none',
-                cursor: 'pointer',
+                cursor: toggleDisabled ? 'not-allowed' : 'pointer',
                 fontSize: '13px',
                 fontWeight: 600,
-                background: viewMode === mode ? 'var(--active-highlight)' : 'var(--bg-primary)',
-                color: viewMode === mode ? '#ffffff' : 'var(--text-tertiary)',
+                background: (!toggleDisabled && viewMode === mode) ? 'var(--active-highlight)' : 'var(--bg-primary)',
+                color: (!toggleDisabled && viewMode === mode) ? '#ffffff' : 'var(--text-tertiary)',
                 transition: 'background var(--transition-speed), color var(--transition-speed)',
               }}
             >

@@ -205,17 +205,22 @@ def seed_database():
             else:
                 print(f"  [=] SAG mapping already exists: {expert_code} → {sub_code}")
 
-        # ── Seed log entry ──────────────────────────────────────────────────
-        db.add(SystemLog(
-            level="INFO",
-            source="SYSTEM",
-            message="Database seed completed.",
-            metadata_json=json.dumps({
-                "expert_agents": len(expert_agent_defs),
-                "sub_agents": len(sub_agent_defs),
-                "sag_mappings": len(sag_mappings),
-            }),
-        ))
+        # ── Seed log entry (one per run, idempotent) ────────────────────────
+        existing_seed_log = db.query(SystemLog).filter(
+            SystemLog.source == "SYSTEM",
+            SystemLog.message == "Database seed completed.",
+        ).first()
+        if not existing_seed_log:
+            db.add(SystemLog(
+                level="INFO",
+                source="SYSTEM",
+                message="Database seed completed.",
+                metadata_json=json.dumps({
+                    "expert_agents": len(expert_agent_defs),
+                    "sub_agents": len(sub_agent_defs),
+                    "sag_mappings": len(sag_mappings),
+                }),
+            ))
 
         db.commit()
         print("\nSeed complete.")

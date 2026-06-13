@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   UserListItem, UserRole, EaAccessItem, ExpertAgent,
   ALL_ROLES, ROLE_LABELS, ROLE_SHORT,
@@ -11,6 +11,8 @@ const emptyForm = {
   role: 'general-user' as UserRole,
 };
 type FormState = typeof emptyForm;
+type SortField = 'username' | 'role' | 'is_active';
+type SortDir = 'asc' | 'desc';
 
 function formatDate(iso: string): string {
   return iso ? iso.slice(0, 10) : '';
@@ -28,6 +30,13 @@ const RoleDot: React.FC<{ active: boolean; onClick?: () => void }> = ({ active, 
   />
 );
 
+const SortArrow: React.FC<{ field: SortField; sortField: SortField; sortDir: SortDir; onSort: (f: SortField) => void }> =
+  ({ field, sortField, sortDir, onSort }) => (
+    <span onClick={() => onSort(field)} style={{ cursor: 'pointer', marginLeft: '4px', fontSize: '10px', opacity: sortField === field ? 1 : 0.35 }}>
+      {sortField === field ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}
+    </span>
+  );
+
 export const UserMgmtView: React.FC = () => {
   const { session } = useAuth();
   const {
@@ -43,13 +52,14 @@ export const UserMgmtView: React.FC = () => {
   const [eaAccessList, setEaAccessList] = useState<EaAccessItem[]>([]);
   const [showEaPanel, setShowEaPanel] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [sortField, setSortField] = useState<SortField>('username');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
 
   useEffect(() => {
     if (!session) return;
     fetch('/api/agents/', { headers: { Authorization: `Bearer ${session.token}` } })
-      .then(r => r.ok ? r.json() : [])
-      .then(setAgents)
-      .catch(() => {});
+      .then(r => r.ok ? r.json() : []).then(setAgents).catch(() => {});
   }, [session]);
 
   useEffect(() => {
@@ -57,6 +67,23 @@ export const UserMgmtView: React.FC = () => {
     const t = setTimeout(() => setToast(null), 3000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Filtered + sorted user list
+  const displayUsers = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    const filtered = q ? users.filter(u => u.username.toLowerCase().includes(q)) : users;
+    return [...filtered].sort((a, b) => {
+      let va: string, vb: string;
+      if (sortField === 'is_active') { va = a.is_active ? 'a' : 'b'; vb = b.is_active ? 'a' : 'b'; }
+      else { va = (a[sortField] as string).toLowerCase(); vb = (b[sortField] as string).toLowerCase(); }
+      return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    });
+  }, [users, search, sortField, sortDir]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+  };
 
   if (session?.role !== 'superuser' && session?.role !== 'admin') {
     return (
@@ -119,8 +146,7 @@ export const UserMgmtView: React.FC = () => {
     if (form.role !== selectedUser.role) patch.role = form.role;
     if (form.corporate_id !== (selectedUser.corporate_id ?? '')) patch.corporate_id = form.corporate_id || null;
     if (Object.keys(patch).length > 0) {
-      const r = await updateUser(selectedUser.id, patch);
-      if (!r) { setToast('Update failed.'); return; }
+      if (!(await updateUser(selectedUser.id, patch))) { setToast('Update failed.'); return; }
     }
     if (form.password.length >= 8) {
       if (!(await resetPassword(selectedUser.id, form.password))) { setToast('Password reset failed.'); return; }
@@ -166,15 +192,27 @@ export const UserMgmtView: React.FC = () => {
     setEaAccessList(await getEaAccess(selectedUser.id));
   };
 
+  // Styles
   const inputStyle: React.CSSProperties = {
     background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
     borderRadius: 'var(--border-radius-sm)', color: 'var(--text-primary)',
     padding: '6px 10px', fontSize: '13px', width: '100%', boxSizing: 'border-box',
   };
+  // Read-only info fields — visually distinct from editable inputs
+  const readonlyStyle: React.CSSProperties = {
+    ...inputStyle,
+    background: '#1a1f2e',       // darker, clearly non-editable
+    color: 'var(--text-tertiary)',
+    border: '1px solid transparent',
+    cursor: 'default',
+  };
   const labelStyle: React.CSSProperties = {
     fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)',
     textTransform: 'uppercase', letterSpacing: '0.4px',
     marginBottom: '4px', display: 'block',
+  };
+  const readonlyLabelStyle: React.CSSProperties = {
+    ...labelStyle, color: '#475569', // even more muted for info-only labels
   };
 
   return (
@@ -196,6 +234,8 @@ export const UserMgmtView: React.FC = () => {
         <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '16px' }}>
           {formMode === 'add' ? 'Add New User' : `Editing: ${selectedUser?.username}`}
         </div>
+
+        {/* Row 1: editable fields */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '12px' }}>
           <div>
             <label style={labelStyle}>Username</label>
@@ -224,15 +264,17 @@ export const UserMgmtView: React.FC = () => {
               placeholder="Optional" />
           </div>
         </div>
+
+        {/* Row 2: read-only info + role + buttons */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr auto', gap: '12px', alignItems: 'end' }}>
           <div>
-            <label style={labelStyle}>Date Created</label>
-            <input style={{ ...inputStyle, opacity: 0.6 }} readOnly
+            <label style={readonlyLabelStyle}>Date Created <span style={{ fontSize: '9px', letterSpacing: 0 }}>(auto)</span></label>
+            <input style={readonlyStyle} readOnly tabIndex={-1}
               value={selectedUser ? formatDate(selectedUser.created_at) : 'Auto-generated'} />
           </div>
           <div>
-            <label style={labelStyle}>System UID</label>
-            <input style={{ ...inputStyle, fontFamily: 'monospace', opacity: 0.6 }} readOnly
+            <label style={readonlyLabelStyle}>System UID <span style={{ fontSize: '9px', letterSpacing: 0 }}>(auto)</span></label>
+            <input style={{ ...readonlyStyle, fontFamily: 'monospace' }} readOnly tabIndex={-1}
               value={selectedUser?.uid ?? 'Auto-generated'} />
           </div>
           <div>
@@ -266,7 +308,7 @@ export const UserMgmtView: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Section 2: Role Matrix ───────────────────────────────────────────── */}
+      {/* ── Section 2: Search bar + Role Matrix ─────────────────────────────── */}
       {loading && <p style={{ color: 'var(--text-tertiary)' }}>Loading users…</p>}
       {error && <p style={{ color: '#f87171' }}>{error}</p>}
 
@@ -275,13 +317,44 @@ export const UserMgmtView: React.FC = () => {
           background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
           borderRadius: 'var(--border-radius-lg)', overflow: 'hidden', marginBottom: '24px',
         }}>
-          <div style={{ overflowX: 'auto' }}>
+          {/* Search bar */}
+          <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>
+              Search
+            </span>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Filter by username…"
+              style={{
+                background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
+                borderRadius: 'var(--border-radius-sm)', color: 'var(--text-primary)',
+                padding: '5px 10px', fontSize: '13px', width: '220px',
+              }}
+            />
+            {search && (
+              <button onClick={() => setSearch('')} style={{
+                background: 'none', border: 'none', color: 'var(--text-tertiary)',
+                cursor: 'pointer', fontSize: '13px', padding: '2px 6px',
+              }}>✕</button>
+            )}
+            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
+              {displayUsers.length} / {users.length} users
+            </span>
+          </div>
+
+          {/* Scrollable table */}
+          <div style={{ overflowX: 'auto', maxHeight: '420px', overflowY: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-              <thead>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                 <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'var(--bg-tertiary)' }}>
-                  <th style={{ padding: '9px 14px', textAlign: 'left', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Username</th>
+                  <th style={{ padding: '9px 14px', textAlign: 'left', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                    Username <SortArrow field="username" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                  </th>
                   <th style={{ padding: '9px 10px', textAlign: 'left', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase' }}>UID</th>
-                  <th style={{ padding: '9px 10px', textAlign: 'left', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase' }}>Status</th>
+                  <th style={{ padding: '9px 10px', textAlign: 'left', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                    Status <SortArrow field="is_active" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                  </th>
                   {ALL_ROLES.map(r => (
                     <th key={r} title={ROLE_LABELS[r]} style={{ padding: '9px 8px', textAlign: 'center', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '10px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
                       {ROLE_SHORT[r] ?? r}
@@ -291,10 +364,15 @@ export const UserMgmtView: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {users.map((user, i) => (
+                {displayUsers.length === 0 && (
+                  <tr><td colSpan={ALL_ROLES.length + 4} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>
+                    No users match "{search}"
+                  </td></tr>
+                )}
+                {displayUsers.map((user, i) => (
                   <tr key={user.id} onClick={() => selectRow(user)}
                     style={{
-                      borderBottom: i < users.length - 1 ? '1px solid var(--border-color)' : 'none',
+                      borderBottom: i < displayUsers.length - 1 ? '1px solid var(--border-color)' : 'none',
                       background: selectedUser?.id === user.id ? 'rgba(59,130,246,0.08)' : 'transparent',
                       cursor: 'pointer',
                     }}>

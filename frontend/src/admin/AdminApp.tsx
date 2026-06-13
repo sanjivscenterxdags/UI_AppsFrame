@@ -23,7 +23,7 @@ export const AdminShell: React.FC = () => {
 
   return (
     <div className="admin-container">
-      <AdminBanner viewMode={viewMode} setViewMode={setViewMode} />
+      <AdminBanner viewMode={viewMode} setViewMode={setViewMode} activeView={activeView} />
       <AdminNav activeView={activeView} onSelect={setActiveView} />
       <main className="admin-main">
         {renderView()}
