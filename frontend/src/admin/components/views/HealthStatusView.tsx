@@ -1,7 +1,12 @@
 import React from 'react';
+import { ViewMode } from '../../../types';
 import { useAdminAgents, useHealthStatus } from '../../hooks/useAdminAgents';
 
-export const HealthStatusView: React.FC = () => {
+interface HealthStatusViewProps {
+  viewMode: ViewMode;
+}
+
+export const HealthStatusView: React.FC<HealthStatusViewProps> = ({ viewMode }) => {
   const { status, loading: healthLoading, error: healthError } = useHealthStatus();
   const { agents, loading: agentsLoading, error: agentsError } = useAdminAgents();
 
@@ -35,10 +40,7 @@ export const HealthStatusView: React.FC = () => {
               width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0,
               backgroundColor: backendOk ? '#34d399' : '#f87171',
             }} />
-            <span style={{
-              fontSize: '13px', fontWeight: 600,
-              color: backendOk ? '#34d399' : '#f87171',
-            }}>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: backendOk ? '#34d399' : '#f87171' }}>
               {backendOk ? `OK — ${status}` : 'Unreachable'}
             </span>
             <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginLeft: '8px' }}>
@@ -48,7 +50,6 @@ export const HealthStatusView: React.FC = () => {
         )}
       </div>
 
-      {/* Expert Agent status table */}
       <h3 style={{ marginBottom: '12px', fontWeight: 600, fontSize: '14px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
         Expert Agent Status
       </h3>
@@ -56,7 +57,8 @@ export const HealthStatusView: React.FC = () => {
       {agentsLoading && <p style={{ color: 'var(--text-tertiary)' }}>Loading agents…</p>}
       {agentsError && <p style={{ color: '#f87171' }}>{agentsError}</p>}
 
-      {!agentsLoading && !agentsError && (
+      {/* Grid (table) view */}
+      {!agentsLoading && !agentsError && viewMode === 'grid' && (
         <div style={{
           background: 'var(--bg-secondary)',
           border: '1px solid var(--border-color)',
@@ -73,29 +75,17 @@ export const HealthStatusView: React.FC = () => {
             </thead>
             <tbody>
               {agents.map((agent, i) => (
-                <tr
-                  key={agent.id}
-                  style={{ borderBottom: i < agents.length - 1 ? '1px solid var(--border-color)' : 'none' }}
-                >
+                <tr key={agent.id} style={{ borderBottom: i < agents.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
                   <td style={{ padding: '11px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{
-                        width: '10px', height: '10px', borderRadius: '2px',
-                        backgroundColor: agent.color_theme, flexShrink: 0,
-                      }} />
+                      <span style={{ width: '10px', height: '10px', borderRadius: '2px', backgroundColor: agent.color_theme, flexShrink: 0 }} />
                       <span style={{ color: 'var(--text-primary)' }}>{agent.name}</span>
                     </div>
                   </td>
                   <td style={{ padding: '11px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{
-                        width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0,
-                        backgroundColor: agent.is_active ? '#34d399' : '#f87171',
-                      }} />
-                      <span style={{
-                        fontSize: '13px', fontWeight: 600,
-                        color: agent.is_active ? '#34d399' : '#f87171',
-                      }}>
+                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0, backgroundColor: agent.is_active ? '#34d399' : '#f87171' }} />
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: agent.is_active ? '#34d399' : '#f87171' }}>
                         {agent.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
@@ -107,6 +97,32 @@ export const HealthStatusView: React.FC = () => {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Tile view */}
+      {!agentsLoading && !agentsError && viewMode === 'tile' && (
+        <div className="agent-grid-tile">
+          {agents.map((agent) => (
+            <div
+              key={agent.id}
+              className="agent-tile"
+              style={{ border: `3px solid ${agent.color_theme}` }}
+            >
+              <span className="agent-tile-title" style={{ color: 'var(--text-primary)' }}>
+                {agent.name}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: agent.is_active ? '#34d399' : '#f87171', flexShrink: 0 }} />
+                <span style={{ fontSize: '12px', fontWeight: 600, color: agent.is_active ? '#34d399' : '#f87171' }}>
+                  {agent.is_active ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+              <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
+                Expert Agent
+              </span>
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -7,6 +7,7 @@ export interface UseAdminAgentsResult {
   loading: boolean;
   error: string | null;
   refetch: () => void;
+  logAdminAction: (message: string) => Promise<void>;
 }
 
 export function useAdminAgents(): UseAdminAgentsResult {
@@ -35,7 +36,23 @@ export function useAdminAgents(): UseAdminAgentsResult {
 
   useEffect(() => { fetchAgents(); }, [fetchAgents]);
 
-  return { agents, loading, error, refetch: fetchAgents };
+  const logAdminAction = useCallback(async (message: string) => {
+    if (!session) return;
+    try {
+      await fetch('/api/logs/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.token}`,
+        },
+        body: JSON.stringify({ level: 'INFO', source: 'USER', message }),
+      });
+    } catch {
+      // best-effort — don't block the UI on audit log failures
+    }
+  }, [session]);
+
+  return { agents, loading, error, refetch: fetchAgents, logAdminAction };
 }
 
 export interface UseHealthStatusResult {

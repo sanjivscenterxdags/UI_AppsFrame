@@ -1,19 +1,60 @@
 import React, { useState, useEffect } from 'react';
+import { ExpertAgent, ViewMode } from '../../../types';
 import { useAdminAgents } from '../../hooks/useAdminAgents';
+import { useAuth } from '../../../context/AuthContext';
 
-export const AgentMgmtView: React.FC = () => {
-  const { agents, loading, error, refetch } = useAdminAgents();
+interface AgentMgmtViewProps {
+  viewMode: ViewMode;
+}
+
+export const AgentMgmtView: React.FC<AgentMgmtViewProps> = ({ viewMode }) => {
+  const { session } = useAuth();
+  const { agents, loading, error, refetch, logAdminAction } = useAdminAgents();
   const [toast, setToast] = useState<string | null>(null);
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-  };
+  const showToast = (msg: string) => setToast(msg);
 
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  const handleToggle = async (agent: ExpertAgent) => {
+    const action = agent.is_active ? 'Deactivate' : 'Activate';
+    const confirmed = window.confirm(
+      `${action} "${agent.name}"?\n\nThis action will be recorded in the audit log.`
+    );
+    if (!confirmed) return;
+
+    await logAdminAction(
+      `Admin "${session?.username}" attempted to ${action.toLowerCase()} agent "${agent.name}" (id=${agent.id}).`
+    );
+    showToast('Toggle not yet implemented — no backend endpoint available. Action logged.');
+  };
+
+  const actionButtonStyle = (isActive: boolean): React.CSSProperties => ({
+    background: 'none',
+    border: `1px solid ${isActive ? '#991b1b' : 'var(--border-color)'}`,
+    borderRadius: 'var(--border-radius-sm)',
+    color: isActive ? '#ef4444' : 'var(--active-highlight)',
+    padding: '4px 12px',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: 600,
+  });
+
+  const actionButtonTileStyle = (isActive: boolean): React.CSSProperties => ({
+    marginTop: '10px',
+    background: 'none',
+    border: `1px solid ${isActive ? '#991b1b' : 'var(--border-color)'}`,
+    borderRadius: 'var(--border-radius-sm)',
+    color: isActive ? '#ef4444' : 'var(--active-highlight)',
+    padding: '3px 10px',
+    cursor: 'pointer',
+    fontSize: '11px',
+    fontWeight: 600,
+  });
 
   return (
     <div>
@@ -38,7 +79,7 @@ export const AgentMgmtView: React.FC = () => {
       {loading && <p style={{ color: 'var(--text-tertiary)' }}>Loading agents…</p>}
       {error && <p style={{ color: '#f87171' }}>{error}</p>}
 
-      {!loading && !error && (
+      {!loading && !error && viewMode === 'grid' && (
         <div style={{
           background: 'var(--bg-secondary)',
           border: '1px solid var(--border-color)',
@@ -56,28 +97,17 @@ export const AgentMgmtView: React.FC = () => {
             </thead>
             <tbody>
               {agents.map((agent, i) => (
-                <tr
-                  key={agent.id}
-                  style={{
-                    borderBottom: i < agents.length - 1 ? '1px solid var(--border-color)' : 'none',
-                  }}
-                >
+                <tr key={agent.id} style={{ borderBottom: i < agents.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
                   <td style={{ padding: '12px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{
-                        width: '12px', height: '12px', borderRadius: '3px',
-                        backgroundColor: agent.color_theme, flexShrink: 0,
-                      }} />
+                      <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: agent.color_theme, flexShrink: 0 }} />
                       <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{agent.name}</span>
                     </div>
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{
-                      display: 'inline-block',
-                      padding: '2px 10px',
-                      borderRadius: '12px',
-                      fontSize: '12px',
-                      fontWeight: 600,
+                      display: 'inline-block', padding: '2px 10px', borderRadius: '12px',
+                      fontSize: '12px', fontWeight: 600,
                       background: agent.is_active ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)',
                       color: agent.is_active ? '#34d399' : '#f87171',
                     }}>
@@ -85,23 +115,12 @@ export const AgentMgmtView: React.FC = () => {
                     </span>
                   </td>
                   <td style={{ padding: '12px 16px', color: 'var(--text-tertiary)', fontSize: '13px' }}>
-                    {agent.specific_sub_agents.length > 0
-                      ? agent.specific_sub_agents.map(s => s.name).join(', ')
-                      : '—'}
+                    {agent.specific_sub_agents.length > 0 ? agent.specific_sub_agents.map(s => s.name).join(', ') : '—'}
                   </td>
                   <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                     <button
-                      onClick={() => showToast('Toggle not yet implemented — no backend endpoint available.')}
-                      style={{
-                        background: 'none',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: 'var(--border-radius-sm)',
-                        color: 'var(--active-highlight)',
-                        padding: '4px 12px',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                      }}
+                      onClick={() => handleToggle(agent)}
+                      style={actionButtonStyle(agent.is_active)}
                     >
                       {agent.is_active ? 'Deactivate' : 'Activate'}
                     </button>
@@ -113,20 +132,42 @@ export const AgentMgmtView: React.FC = () => {
         </div>
       )}
 
+      {!loading && !error && viewMode === 'tile' && (
+        <div className="agent-grid-tile">
+          {agents.map((agent) => (
+            <div
+              key={agent.id}
+              className="agent-tile"
+              style={{ border: `3px solid ${agent.color_theme}` }}
+            >
+              <span className="agent-tile-title" style={{ color: 'var(--text-primary)' }}>
+                {agent.name}
+              </span>
+              <span style={{
+                display: 'inline-block', marginTop: '8px', padding: '2px 10px',
+                borderRadius: '12px', fontSize: '12px', fontWeight: 600,
+                background: agent.is_active ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)',
+                color: agent.is_active ? '#34d399' : '#f87171',
+              }}>
+                {agent.is_active ? 'Active' : 'Inactive'}
+              </span>
+              <button
+                onClick={() => handleToggle(agent)}
+                style={actionButtonTileStyle(agent.is_active)}
+              >
+                {agent.is_active ? 'Deactivate' : 'Activate'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {toast && (
         <div style={{
-          position: 'fixed',
-          bottom: '48px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: '#1e293b',
-          color: '#f8fafc',
-          padding: '12px 24px',
-          borderRadius: 'var(--border-radius-md)',
-          fontSize: '13px',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-          zIndex: 1000,
-          whiteSpace: 'nowrap',
+          position: 'fixed', bottom: '48px', left: '50%', transform: 'translateX(-50%)',
+          background: '#1e293b', color: '#f8fafc', padding: '12px 24px',
+          borderRadius: 'var(--border-radius-md)', fontSize: '13px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.4)', zIndex: 1000, whiteSpace: 'nowrap',
         }}>
           {toast}
         </div>
