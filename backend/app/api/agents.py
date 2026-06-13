@@ -14,18 +14,19 @@ from app.database import get_db
 from app.models.agent import ExpertAgent
 from app.schemas.agent import ExpertAgentResponse, AgentSelectResponse
 from app.models.log import SystemLog
+from app.api.auth import require_jwt
 
 router = APIRouter(prefix="/agents", tags=["Agents"])
 
 @router.get("/", response_model=List[ExpertAgentResponse])
-def list_agents(db: Session = Depends(get_db)):
+def list_agents(db: Session = Depends(get_db), _token: dict = Depends(require_jwt)):
     """
     Retrieve a list of all available Expert AI Agents marked 'active' with their details.
     """
     return db.query(ExpertAgent).filter(ExpertAgent.is_active == True).all()
     
 @router.post("/{agent_id}/select", response_model=AgentSelectResponse)
-def select_agent(agent_id: int, db: Session = Depends(get_db)):
+def select_agent(agent_id: int, db: Session = Depends(get_db), _token: dict = Depends(require_jwt)):
     """
     Endpoint to select an agent by ID. In a real implementation, this would 
     involve session management and state tracking to associate the selected 

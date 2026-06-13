@@ -112,6 +112,8 @@ class SubAgent(Base):
     id = Column(Integer, primary_key=True, index=True)
     # Unique name for the Sub-Agent
     name = Column(String,  unique=True, nullable=False)
+    # Machine-readable slug (e.g. "email_agent")
+    code_name = Column(String, unique=True, nullable=True)
     # Optional description of the Sub-Agent
     description = Column(Text, nullable=True)
     # 'CAG' or 'SAG' to indicate the type of sub-agent (Common or Specialized)

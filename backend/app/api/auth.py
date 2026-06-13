@@ -8,8 +8,9 @@ Required environment variables (add to .env):
 import os
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from jose import jwt
+from fastapi import APIRouter, Depends, HTTPException, Security, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
@@ -27,6 +28,22 @@ if not _JWT_SECRET:
 
 _JWT_ALGORITHM = "HS256"
 _JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
+
+
+_bearer = HTTPBearer()
+
+
+def require_jwt(credentials: HTTPAuthorizationCredentials = Security(_bearer)) -> dict:
+    """FastAPI dependency — validates Bearer JWT and returns its decoded payload."""
+    try:
+        payload = jwt.decode(credentials.credentials, _JWT_SECRET, algorithms=[_JWT_ALGORITHM])
+        return payload
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 def _create_access_token(data: dict) -> str:
