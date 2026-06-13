@@ -53,6 +53,7 @@ export const UserMgmtView: React.FC = () => {
   const [showEaPanel, setShowEaPanel] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('');
   const [sortField, setSortField] = useState<SortField>('username');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [showPassword, setShowPassword] = useState(false);
@@ -72,14 +73,15 @@ export const UserMgmtView: React.FC = () => {
   // Filtered + sorted user list
   const displayUsers = useMemo(() => {
     const q = search.toLowerCase().trim();
-    const filtered = q ? users.filter(u => u.username.toLowerCase().includes(q)) : users;
+    let filtered = q ? users.filter(u => u.username.toLowerCase().includes(q)) : users;
+    if (roleFilter) filtered = filtered.filter(u => u.role === roleFilter);
     return [...filtered].sort((a, b) => {
       let va: string, vb: string;
       if (sortField === 'is_active') { va = a.is_active ? 'a' : 'b'; vb = b.is_active ? 'a' : 'b'; }
       else { va = (a[sortField] as string).toLowerCase(); vb = (b[sortField] as string).toLowerCase(); }
       return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
     });
-  }, [users, search, sortField, sortDir]);
+  }, [users, search, roleFilter, sortField, sortDir]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -346,8 +348,9 @@ export const UserMgmtView: React.FC = () => {
           background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
           borderRadius: 'var(--border-radius-lg)', overflow: 'hidden', marginBottom: '24px',
         }}>
-          {/* Search bar */}
-          <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Search + Role filter bar */}
+          <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {/* Username search */}
             <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>
               Search
             </span>
@@ -358,15 +361,44 @@ export const UserMgmtView: React.FC = () => {
               style={{
                 background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
                 borderRadius: 'var(--border-radius-sm)', color: 'var(--text-primary)',
-                padding: '5px 10px', fontSize: '13px', width: '220px',
+                padding: '5px 10px', fontSize: '13px', width: '200px',
               }}
             />
             {search && (
               <button onClick={() => setSearch('')} style={{
                 background: 'none', border: 'none', color: 'var(--text-tertiary)',
-                cursor: 'pointer', fontSize: '13px', padding: '2px 6px',
+                cursor: 'pointer', fontSize: '13px', padding: '2px 4px',
               }}>✕</button>
             )}
+
+            {/* Divider */}
+            <span style={{ width: '1px', height: '20px', background: 'var(--border-color)', flexShrink: 0 }} />
+
+            {/* Role filter dropdown — view only, read-only appearance */}
+            <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>
+              Role
+            </span>
+            <select
+              value={roleFilter}
+              onChange={e => setRoleFilter(e.target.value)}
+              style={{
+                background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
+                borderRadius: 'var(--border-radius-sm)', color: roleFilter ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                padding: '5px 8px', fontSize: '13px', cursor: 'pointer', minWidth: '130px',
+              }}
+            >
+              <option value="">All roles</option>
+              {ALL_ROLES.map(r => (
+                <option key={r} value={r}>{ROLE_SHORT[r] ?? r} — {ROLE_LABELS[r]}</option>
+              ))}
+            </select>
+            {roleFilter && (
+              <button onClick={() => setRoleFilter('')} style={{
+                background: 'none', border: 'none', color: 'var(--text-tertiary)',
+                cursor: 'pointer', fontSize: '13px', padding: '2px 4px',
+              }}>✕</button>
+            )}
+
             <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
               {displayUsers.length} / {users.length} users
             </span>

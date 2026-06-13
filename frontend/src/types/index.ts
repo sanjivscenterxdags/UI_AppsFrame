@@ -76,11 +76,11 @@ export const ROLE_SHORT: Record<string, string> = {
   'admin-data-manager':           'DATA',
   'admin-asset-register-manager': 'ASSET-REG',
   'admin-asset-risk-manager':     'ASSET-RISK',
-  'admin-change-manager':         'CHG',
+  'admin-change-manager':         'CHANGE',
   'admin-logging-manager':        'LOG',
   'admin-siem-manager':           'SIEM',
-  'admin-reports-manager':        'RPT',
-  'general-user':                 'GEN',
+  'admin-reports-manager':        'REPORTS',
+  'general-user':                 'GENERAL',
 };
 
 export interface UserListItem {
