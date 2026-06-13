@@ -1,5 +1,30 @@
+# Python virtual environment
+appsFrame/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# SQLite database
+*.db
+*.db-shm
+*.db-wal
+
+# Environment secrets
 .env
-.bak
-.vscode
-appsFrame
-appsFrame2.code-workspace
+*.env
+
+# Frontend dependencies
+frontend/node_modules/
+
+# Build / dist
+frontend/dist/
+
+# Editor
+.vscode/
+*.code-workspace
+*.swp
+
+# Claude Code local settings
+.claude/settings.local.json
+settings.local.json
