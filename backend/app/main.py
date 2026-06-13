@@ -43,6 +43,12 @@ app.include_router(agents.router, prefix="/api")
 app.include_router(logs.router,   prefix="/api")
 
 
+# Adding this block to handle the "/" URL
+@app.get("/")
+def read_root(): 
+   return {"status": "success", "message": "Welcome to appsFrame2 API"}
+    
+
 @app.get("/health", tags=["Health"])
 def health_check():
     return {"status": "ok"}

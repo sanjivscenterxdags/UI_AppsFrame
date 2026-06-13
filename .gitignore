@@ -1,2 +1,5 @@
 .env
 .bak
+.vscode
+appsFrame
+appsFrame2.code-workspace

@@ -30,7 +30,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV "/Users/sanjivsingh/pydev16/max001/DdgizApps/appsFrame/appsFrame"
+set -gx VIRTUAL_ENV "/Users/sanjivsingh/pydev16/max001/DdgizApps/appsFrame2/appsFrame"
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/bin" $PATH
