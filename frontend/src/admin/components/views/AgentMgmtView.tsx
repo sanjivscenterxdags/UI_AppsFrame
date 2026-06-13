@@ -35,9 +35,9 @@ export const AgentMgmtView: React.FC<AgentMgmtViewProps> = ({ viewMode }) => {
 
   const actionButtonStyle = (isActive: boolean): React.CSSProperties => ({
     background: 'none',
-    border: `1px solid ${isActive ? '#c2410c' : 'var(--border-color)'}`,
+    border: `1px solid ${isActive ? '#c2410c' : '#15803d'}`,
     borderRadius: 'var(--border-radius-sm)',
-    color: isActive ? '#ff6a00' : 'var(--active-highlight)',
+    color: isActive ? '#ff6a00' : '#00ff88',
     padding: '4px 12px',
     cursor: 'pointer',
     fontSize: '12px',
@@ -47,9 +47,9 @@ export const AgentMgmtView: React.FC<AgentMgmtViewProps> = ({ viewMode }) => {
   const actionButtonTileStyle = (isActive: boolean): React.CSSProperties => ({
     marginTop: '10px',
     background: 'none',
-    border: `1px solid ${isActive ? '#c2410c' : 'var(--border-color)'}`,
+    border: `1px solid ${isActive ? '#c2410c' : '#15803d'}`,
     borderRadius: 'var(--border-radius-sm)',
-    color: isActive ? '#ff6a00' : 'var(--active-highlight)',
+    color: isActive ? '#ff6a00' : '#00ff88',
     padding: '3px 10px',
     cursor: 'pointer',
     fontSize: '11px',
