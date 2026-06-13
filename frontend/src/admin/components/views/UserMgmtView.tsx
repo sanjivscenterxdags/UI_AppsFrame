@@ -55,6 +55,7 @@ export const UserMgmtView: React.FC = () => {
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('username');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -253,9 +254,23 @@ export const UserMgmtView: React.FC = () => {
           </div>
           <div>
             <label style={labelStyle}>{formMode === 'add' ? 'Default Password' : 'Reset Password'}</label>
-            <input style={inputStyle} type="password" value={form.password}
-              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-              placeholder={formMode === 'edit' ? 'Leave blank to keep' : 'Min 8 characters'} />
+            <div style={{ position: 'relative' }}>
+              <input style={{ ...inputStyle, paddingRight: '34px' }}
+                type={showPassword ? 'text' : 'password'}
+                value={form.password}
+                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                placeholder={formMode === 'edit' ? 'Leave blank to keep' : 'Min 8 characters'} />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                title={showPassword ? 'Hide password' : 'Show password'}
+                style={{
+                  position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--text-tertiary)', fontSize: '14px', lineHeight: 1, padding: '2px',
+                }}
+              >{showPassword ? '🙈' : '👁'}</button>
+            </div>
           </div>
           <div>
             <label style={labelStyle}>Corporate ID</label>
