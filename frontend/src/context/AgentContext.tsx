@@ -14,7 +14,7 @@ interface AgentContextType {
 const AgentContext = createContext<AgentContextType | undefined>(undefined);
 
 export const AgentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { session } = useAuth();
+  const { session, logout } = useAuth();
   const [agents, setAgents] = useState<ExpertAgent[]>([]);
   const [agentsLoading, setAgentsLoading] = useState(true);
   const [activeAgentId, setActiveAgentId] = useState<number | null>(null);
@@ -22,10 +22,17 @@ export const AgentProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const authHeader: Record<string, string> = session ? { 'Authorization': `Bearer ${session.token}` } : {};
 
+  const handleUnauthorized = () => {
+    logout();
+  };
+
   // 1. Fetch Expert Agents from backend SQLite
   useEffect(() => {
     fetch('/api/agents/', { headers: authHeader })
-      .then(res => res.json())
+      .then(res => {
+        if (res.status === 401) { handleUnauthorized(); return []; }
+        return res.json();
+      })
       .then(data => setAgents(data))
       .catch(err => console.error("Error loading agents: ", err))
       .finally(() => setAgentsLoading(false));
@@ -36,6 +43,7 @@ export const AgentProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const fetchLogs = async () => {
     try {
       const res = await fetch('/api/logs/', { headers: authHeader });
+      if (res.status === 401) { handleUnauthorized(); return; }
       const data = await res.json();
       setLogs(data);
     } catch (e) {
