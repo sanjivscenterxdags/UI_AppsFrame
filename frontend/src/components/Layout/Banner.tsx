@@ -55,7 +55,27 @@ export const Banner: React.FC = () => {
         <button onClick={toggleTheme} className="theme-toggle" title="Toggle Theme">
           {theme === 'light' ? '🌙' : '☀️'}
         </button>
-        <button 
+
+        {/* Admin button — admin role only */}
+        {session?.role === 'admin' && (
+          <button
+            onClick={() => { window.location.hash = '#admin'; }}
+            style={{
+              background: 'none',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--border-radius-sm)',
+              color: 'var(--text-secondary)',
+              padding: '4px 12px',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: 500,
+            }}
+          >
+            ⚙ Admin
+          </button>
+        )}
+
+        <button
           onClick={logout}
           style={{
             background: 'none',

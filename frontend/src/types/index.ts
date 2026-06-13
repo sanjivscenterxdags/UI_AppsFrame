@@ -35,3 +35,5 @@ export interface SystemLog {
 }
 
 export type AdminNavView = 'user-mgmt' | 'agent-mgmt' | 'prompt-window' | 'health-status';
+
+export type ViewMode = 'grid' | 'tile';

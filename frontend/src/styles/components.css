@@ -120,6 +120,22 @@
   line-height: 1.4;
 }
 
+/* Agent Grid — Tile view */
+.agent-grid-tile {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.agent-grid-tile .agent-tile {
+  height: 110px;
+  padding: 20px 16px;
+}
+
+.agent-grid-tile .agent-tile-title {
+  font-size: 15px;
+}
+
 /* Theme Toggle Button */
 .theme-toggle {
   background: none;

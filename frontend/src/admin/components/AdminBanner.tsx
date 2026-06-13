@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { ViewMode } from '../../types';
 
-export const AdminBanner: React.FC = () => {
+interface AdminBannerProps {
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
+}
+
+export const AdminBanner: React.FC<AdminBannerProps> = ({ viewMode, setViewMode }) => {
   const { session, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [dateTime, setDateTime] = useState(new Date());
@@ -31,7 +37,7 @@ export const AdminBanner: React.FC = () => {
         </span>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '14px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '14px' }}>
         <span style={{ color: 'var(--text-secondary)' }}>
           User: <strong>{session?.username}</strong>
         </span>
@@ -41,6 +47,29 @@ export const AdminBanner: React.FC = () => {
         <button onClick={toggleTheme} className="theme-toggle" title="Toggle Theme">
           {theme === 'light' ? '🌙' : '☀️'}
         </button>
+
+        {/* Grid / Tile view toggle */}
+        <div style={{ display: 'flex', border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
+          {(['grid', 'tile'] as const).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              style={{
+                padding: '5px 14px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 600,
+                background: viewMode === mode ? 'var(--active-highlight)' : 'var(--bg-primary)',
+                color: viewMode === mode ? '#ffffff' : 'var(--text-tertiary)',
+                transition: 'background var(--transition-speed), color var(--transition-speed)',
+              }}
+            >
+              {mode === 'grid' ? 'Grid' : 'Tile'}
+            </button>
+          ))}
+        </div>
+
         <button
           onClick={() => { window.location.hash = ''; }}
           style={{
