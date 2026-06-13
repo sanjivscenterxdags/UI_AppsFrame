@@ -11,6 +11,7 @@ Run:
 """
 
 import json
+import uuid
 
 from passlib.context import CryptContext
 
@@ -51,6 +52,8 @@ def seed_database():
 
     # One-time schema migrations for columns added after initial release
     # SQLite cannot ADD COLUMN with UNIQUE — add plain then create index separately
+
+    # --- Iteration 2: sub_agents.code_name ---
     _migrate_add_column_if_missing("code_name", "sub_agents", "VARCHAR")
     with engine.connect() as conn:
         indexes = [row[1] for row in conn.execute(
@@ -62,9 +65,34 @@ def seed_database():
             ))
             conn.commit()
 
+    # --- Iteration 3: users new columns ---
+    _migrate_add_column_if_missing("is_active",    "users", "BOOLEAN NOT NULL DEFAULT 1")
+    _migrate_add_column_if_missing("corporate_id", "users", "VARCHAR")
+    _migrate_add_column_if_missing("uid",          "users", "VARCHAR")
+
+    # Back-fill uid for any existing users that have NULL uid
+    import sqlalchemy as _sa
+    with engine.connect() as conn:
+        rows = conn.execute(_sa.text("SELECT id FROM users WHERE uid IS NULL")).fetchall()
+        for row in rows:
+            conn.execute(_sa.text("UPDATE users SET uid=:u WHERE id=:id"),
+                         {"u": uuid.uuid4().hex[:8], "id": row[0]})
+        if rows:
+            conn.commit()
+            print(f"  [m] Back-filled uid for {len(rows)} existing user(s)")
+
+    # Unique index on uid
+    with engine.connect() as conn:
+        idxs = [r[1] for r in conn.execute(_sa.text("PRAGMA index_list(users)")).fetchall()]
+        if "ix_users_uid" not in idxs:
+            conn.execute(_sa.text("CREATE UNIQUE INDEX ix_users_uid ON users (uid)"))
+            conn.commit()
+            print("  [m] Created unique index ix_users_uid")
+
     db = SessionLocal()
     try:
-        # ── Admin user ──────────────────────────────────────────────────────
+        # ── Admin user (legacy — TODO: remove after mike.k confirmed working) ─
+        # SPEC requires no non-name users. Kept for backward compat during migration.
         admin, created = _get_or_create(
             db, User,
             lookup_kwargs={"username": "admin"},
@@ -72,12 +100,32 @@ def seed_database():
                 "email": "admin@localhost",
                 "hashed_password": pwd_context.hash("admin"),
                 "role": "admin",
+                "is_active": True,
+                "uid": uuid.uuid4().hex[:8],
             },
         )
         if created:
             print("  [+] admin user created")
         else:
             print("  [=] admin user already exists")
+
+        # ── mike.k — Mike King — superuser ───────────────────────────────────
+        mike, created = _get_or_create(
+            db, User,
+            lookup_kwargs={"username": "mike.k"},
+            create_kwargs={
+                "email": "mike.king@cdags.local",
+                "hashed_password": pwd_context.hash("Admin1234!"),
+                "role": "superuser",
+                "is_active": True,
+                "corporate_id": None,
+                "uid": uuid.uuid4().hex[:8],
+            },
+        )
+        if created:
+            print("  [+] mike.k (superuser) created")
+        else:
+            print("  [=] mike.k already exists")
 
         # ── Expert Agents ───────────────────────────────────────────────────
         expert_agent_defs = [

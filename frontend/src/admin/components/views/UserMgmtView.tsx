@@ -1,26 +1,381 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import {
+  UserListItem, UserRole, EaAccessItem, ExpertAgent,
+  ALL_ROLES, ROLE_LABELS, ROLE_SHORT,
+} from '../../../types';
+import { useAuth } from '../../../context/AuthContext';
+import { useUserMgmt } from '../../hooks/useUserMgmt';
 
-export const UserMgmtView: React.FC = () => (
-  <div>
-    <h2 style={{ marginBottom: '24px', fontWeight: 600, color: 'var(--text-primary)' }}>
-      User Management
-    </h2>
-    <div style={{
-      background: 'var(--bg-secondary)',
-      border: '1px solid var(--border-color)',
-      borderRadius: 'var(--border-radius-lg)',
-      padding: '48px 24px',
-      textAlign: 'center',
-      color: 'var(--text-tertiary)',
-    }}>
-      <div style={{ fontSize: '36px', marginBottom: '12px' }}>🔒</div>
-      <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)' }}>
-        Coming Soon
-      </div>
-      <div style={{ fontSize: '13px' }}>
-        User management endpoints are not yet available. This view will allow creating,
-        editing, and deactivating user accounts.
-      </div>
-    </div>
-  </div>
+const emptyForm = {
+  username: '', email: '', password: '', corporate_id: '',
+  role: 'general-user' as UserRole,
+};
+type FormState = typeof emptyForm;
+
+function formatDate(iso: string): string {
+  return iso ? iso.slice(0, 10) : '';
+}
+
+const RoleDot: React.FC<{ active: boolean; onClick?: () => void }> = ({ active, onClick }) => (
+  <span
+    onClick={onClick}
+    title={active ? 'Current role' : 'Click to assign this role'}
+    style={{
+      display: 'inline-block', width: 12, height: 12, borderRadius: '50%',
+      backgroundColor: active ? '#00ff88' : '#dc143c',
+      cursor: onClick && !active ? 'pointer' : 'default', flexShrink: 0,
+    }}
+  />
 );
+
+export const UserMgmtView: React.FC = () => {
+  const { session } = useAuth();
+  const {
+    users, loading, error, refetch,
+    createUser, updateUser, resetPassword, deleteUser,
+    getEaAccess, addEaAccess, removeEaAccess, logAdminAction,
+  } = useUserMgmt();
+
+  const [agents, setAgents] = useState<ExpertAgent[]>([]);
+  const [selectedUser, setSelectedUser] = useState<UserListItem | null>(null);
+  const [formMode, setFormMode] = useState<'add' | 'edit'>('add');
+  const [form, setForm] = useState<FormState>(emptyForm);
+  const [eaAccessList, setEaAccessList] = useState<EaAccessItem[]>([]);
+  const [showEaPanel, setShowEaPanel] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!session) return;
+    fetch('/api/agents/', { headers: { Authorization: `Bearer ${session.token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(setAgents)
+      .catch(() => {});
+  }, [session]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  if (session?.role !== 'superuser' && session?.role !== 'admin') {
+    return (
+      <div style={{ padding: '32px' }}>
+        <div style={{
+          background: 'rgba(220,20,60,0.12)', border: '1px solid #dc143c',
+          borderRadius: 'var(--border-radius-lg)', padding: '24px',
+          color: '#f87171', fontWeight: 600,
+        }}>
+          Access Denied — Superuser role required.
+        </div>
+      </div>
+    );
+  }
+
+  const clearForm = () => {
+    setForm(emptyForm); setSelectedUser(null);
+    setFormMode('add'); setShowEaPanel(false); setEaAccessList([]);
+  };
+
+  const selectRow = async (user: UserListItem) => {
+    setSelectedUser(user); setFormMode('edit');
+    setForm({ username: user.username, email: user.email, password: '',
+               corporate_id: user.corporate_id ?? '', role: user.role });
+    setEaAccessList([]);
+    if (user.role === 'general-user') {
+      setShowEaPanel(true);
+      setEaAccessList(await getEaAccess(user.id));
+    } else { setShowEaPanel(false); }
+  };
+
+  const validate = (): string | null => {
+    if (!form.username.match(/^[a-z]+\.[a-z]\d*$/))
+      return 'Username must be lowercase, format: first.l or first.l7';
+    if (!form.email.includes('@')) return 'Invalid email address';
+    if (formMode === 'add' && form.password.length < 8) return 'Password must be at least 8 characters';
+    if (!ALL_ROLES.includes(form.role)) return 'Invalid role selected';
+    return null;
+  };
+
+  const handleAdd = async () => {
+    const err = validate();
+    if (err) { setToast(`⚠ ${err}`); return; }
+    const result = await createUser({
+      username: form.username, email: form.email, password: form.password,
+      role: form.role, corporate_id: form.corporate_id || undefined,
+    });
+    if (result) {
+      await logAdminAction(`Superuser "${session?.username}" created user "${form.username}" with role "${form.role}".`);
+      setToast(`User "${form.username}" created.`); clearForm();
+    } else { setToast('Failed — username or email may already exist.'); }
+  };
+
+  const handleUpdate = async () => {
+    if (!selectedUser) return;
+    const err = validate();
+    if (err) { setToast(`⚠ ${err}`); return; }
+    const patch: Record<string, unknown> = {};
+    if (form.email !== selectedUser.email) patch.email = form.email;
+    if (form.role !== selectedUser.role) patch.role = form.role;
+    if (form.corporate_id !== (selectedUser.corporate_id ?? '')) patch.corporate_id = form.corporate_id || null;
+    if (Object.keys(patch).length > 0) {
+      const r = await updateUser(selectedUser.id, patch);
+      if (!r) { setToast('Update failed.'); return; }
+    }
+    if (form.password.length >= 8) {
+      if (!(await resetPassword(selectedUser.id, form.password))) { setToast('Password reset failed.'); return; }
+    }
+    await logAdminAction(`Superuser "${session?.username}" updated user "${selectedUser.username}".`);
+    setToast(`User "${selectedUser.username}" updated.`); clearForm();
+  };
+
+  const handleRoleChange = async (user: UserListItem, newRole: UserRole) => {
+    if (user.role === newRole) return;
+    if (!window.confirm(`Change "${user.username}"'s role to "${ROLE_LABELS[newRole]}"?\nThis will be audit-logged.`)) return;
+    const r = await updateUser(user.id, { role: newRole });
+    if (r) {
+      await logAdminAction(`Superuser "${session?.username}" changed "${user.username}" role from "${user.role}" to "${newRole}".`);
+      setToast(`Role updated for "${user.username}".`);
+    } else { setToast('Role update failed.'); }
+  };
+
+  const handleSuspendToggle = async (user: UserListItem) => {
+    const action = user.is_active ? 'suspend' : 'restore';
+    if (!window.confirm(`${action === 'suspend' ? 'Suspend' : 'Restore'} user "${user.username}"?\nThis will be audit-logged.`)) return;
+    const r = await updateUser(user.id, { is_active: !user.is_active });
+    if (r) {
+      await logAdminAction(`Superuser "${session?.username}" ${action}d user "${user.username}" (id=${user.id}).`);
+      setToast(`"${user.username}" ${action === 'suspend' ? 'suspended' : 'restored'}.`);
+    }
+  };
+
+  const handleDelete = async (user: UserListItem) => {
+    if (!window.confirm(`Permanently delete "${user.username}"?\nThis CANNOT be undone.`)) return;
+    if (await deleteUser(user.id)) {
+      await logAdminAction(`Superuser "${session?.username}" deleted user "${user.username}" (id=${user.id}).`);
+      setToast(`"${user.username}" deleted.`);
+      if (selectedUser?.id === user.id) clearForm();
+    } else { setToast('Delete failed.'); }
+  };
+
+  const handleEaToggle = async (ea: ExpertAgent) => {
+    if (!selectedUser) return;
+    const has = eaAccessList.some(e => e.expert_agent_id === ea.id);
+    if (has) await removeEaAccess(selectedUser.id, ea.id);
+    else await addEaAccess(selectedUser.id, ea.id);
+    setEaAccessList(await getEaAccess(selectedUser.id));
+  };
+
+  const inputStyle: React.CSSProperties = {
+    background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
+    borderRadius: 'var(--border-radius-sm)', color: 'var(--text-primary)',
+    padding: '6px 10px', fontSize: '13px', width: '100%', boxSizing: 'border-box',
+  };
+  const labelStyle: React.CSSProperties = {
+    fontSize: '11px', fontWeight: 600, color: 'var(--text-tertiary)',
+    textTransform: 'uppercase', letterSpacing: '0.4px',
+    marginBottom: '4px', display: 'block',
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2 style={{ fontWeight: 600, color: 'var(--text-primary)' }}>User Management</h2>
+        <button onClick={refetch} style={{
+          background: 'none', border: '1px solid var(--border-color)',
+          borderRadius: 'var(--border-radius-md)', color: 'var(--text-secondary)',
+          padding: '6px 14px', cursor: 'pointer', fontSize: '13px',
+        }}>Refresh</button>
+      </div>
+
+      {/* ── Section 1: Form ──────────────────────────────────────────────────── */}
+      <div style={{
+        background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
+        borderRadius: 'var(--border-radius-lg)', padding: '20px', marginBottom: '24px',
+      }}>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '16px' }}>
+          {formMode === 'add' ? 'Add New User' : `Editing: ${selectedUser?.username}`}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '12px' }}>
+          <div>
+            <label style={labelStyle}>Username</label>
+            <input style={{ ...inputStyle, opacity: formMode === 'edit' ? 0.6 : 1 }}
+              value={form.username} readOnly={formMode === 'edit'}
+              onChange={e => setForm(f => ({ ...f, username: e.target.value.toLowerCase() }))}
+              placeholder="first.l" />
+            {formMode === 'add' && <span style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>first_name.last_initial</span>}
+          </div>
+          <div>
+            <label style={labelStyle}>Email</label>
+            <input style={inputStyle} type="email" value={form.email}
+              onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+              placeholder="user@example.com" />
+          </div>
+          <div>
+            <label style={labelStyle}>{formMode === 'add' ? 'Default Password' : 'Reset Password'}</label>
+            <input style={inputStyle} type="password" value={form.password}
+              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+              placeholder={formMode === 'edit' ? 'Leave blank to keep' : 'Min 8 characters'} />
+          </div>
+          <div>
+            <label style={labelStyle}>Corporate ID</label>
+            <input style={inputStyle} value={form.corporate_id}
+              onChange={e => setForm(f => ({ ...f, corporate_id: e.target.value }))}
+              placeholder="Optional" />
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr auto', gap: '12px', alignItems: 'end' }}>
+          <div>
+            <label style={labelStyle}>Date Created</label>
+            <input style={{ ...inputStyle, opacity: 0.6 }} readOnly
+              value={selectedUser ? formatDate(selectedUser.created_at) : 'Auto-generated'} />
+          </div>
+          <div>
+            <label style={labelStyle}>System UID</label>
+            <input style={{ ...inputStyle, fontFamily: 'monospace', opacity: 0.6 }} readOnly
+              value={selectedUser?.uid ?? 'Auto-generated'} />
+          </div>
+          <div>
+            <label style={labelStyle}>Role</label>
+            <select style={{ ...inputStyle, cursor: 'pointer' }}
+              value={form.role}
+              onChange={e => setForm(f => ({ ...f, role: e.target.value as UserRole }))}>
+              {ALL_ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+            </select>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {formMode === 'add' ? (
+              <button onClick={handleAdd} style={{
+                background: 'var(--active-highlight)', border: 'none',
+                borderRadius: 'var(--border-radius-sm)', color: '#fff',
+                padding: '7px 16px', cursor: 'pointer', fontSize: '13px', fontWeight: 600,
+              }}>Add User</button>
+            ) : (
+              <button onClick={handleUpdate} style={{
+                background: 'none', border: '1px solid #15803d',
+                borderRadius: 'var(--border-radius-sm)', color: '#00ff88',
+                padding: '7px 16px', cursor: 'pointer', fontSize: '13px', fontWeight: 600,
+              }}>Update</button>
+            )}
+            <button onClick={clearForm} style={{
+              background: 'none', border: '1px solid var(--border-color)',
+              borderRadius: 'var(--border-radius-sm)', color: 'var(--text-secondary)',
+              padding: '7px 14px', cursor: 'pointer', fontSize: '13px',
+            }}>Clear</button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Section 2: Role Matrix ───────────────────────────────────────────── */}
+      {loading && <p style={{ color: 'var(--text-tertiary)' }}>Loading users…</p>}
+      {error && <p style={{ color: '#f87171' }}>{error}</p>}
+
+      {!loading && !error && (
+        <div style={{
+          background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
+          borderRadius: 'var(--border-radius-lg)', overflow: 'hidden', marginBottom: '24px',
+        }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'var(--bg-tertiary)' }}>
+                  <th style={{ padding: '9px 14px', textAlign: 'left', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Username</th>
+                  <th style={{ padding: '9px 10px', textAlign: 'left', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase' }}>UID</th>
+                  <th style={{ padding: '9px 10px', textAlign: 'left', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase' }}>Status</th>
+                  {ALL_ROLES.map(r => (
+                    <th key={r} title={ROLE_LABELS[r]} style={{ padding: '9px 8px', textAlign: 'center', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '10px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                      {ROLE_SHORT[r] ?? r}
+                    </th>
+                  ))}
+                  <th style={{ padding: '9px 14px', textAlign: 'right', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user, i) => (
+                  <tr key={user.id} onClick={() => selectRow(user)}
+                    style={{
+                      borderBottom: i < users.length - 1 ? '1px solid var(--border-color)' : 'none',
+                      background: selectedUser?.id === user.id ? 'rgba(59,130,246,0.08)' : 'transparent',
+                      cursor: 'pointer',
+                    }}>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-primary)', fontWeight: 500, whiteSpace: 'nowrap' }}>{user.username}</td>
+                    <td style={{ padding: '10px 10px', fontFamily: 'monospace', fontSize: '12px', color: 'var(--text-tertiary)' }}>{user.uid}</td>
+                    <td style={{ padding: '10px 10px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: user.is_active ? '#00ff88' : '#ff6a00' }}>
+                        {user.is_active ? 'Active' : 'Suspended'}
+                      </span>
+                    </td>
+                    {ALL_ROLES.map(r => (
+                      <td key={r} style={{ padding: '10px 8px', textAlign: 'center' }}
+                        onClick={e => { e.stopPropagation(); handleRoleChange(user, r); }}>
+                        <RoleDot active={user.role === r}
+                          onClick={user.role !== r ? () => handleRoleChange(user, r) : undefined} />
+                      </td>
+                    ))}
+                    <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}
+                      onClick={e => e.stopPropagation()}>
+                      <button onClick={() => handleSuspendToggle(user)} style={{
+                        background: 'none',
+                        border: `1px solid ${user.is_active ? '#c2410c' : '#15803d'}`,
+                        borderRadius: 'var(--border-radius-sm)',
+                        color: user.is_active ? '#ff6a00' : '#00ff88',
+                        padding: '3px 10px', cursor: 'pointer', fontSize: '11px', fontWeight: 600, marginRight: '6px',
+                      }}>{user.is_active ? 'Suspend' : 'Restore'}</button>
+                      <button onClick={() => handleDelete(user)} style={{
+                        background: 'none', border: '1px solid #991b1b',
+                        borderRadius: 'var(--border-radius-sm)', color: '#ef4444',
+                        padding: '3px 10px', cursor: 'pointer', fontSize: '11px', fontWeight: 600,
+                      }}>Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Section 3: EA Access Panel ───────────────────────────────────────── */}
+      {showEaPanel && selectedUser && (
+        <div style={{
+          background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
+          borderRadius: 'var(--border-radius-lg)', padding: '20px',
+        }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '14px' }}>
+            EA Access — <span style={{ color: 'var(--text-primary)' }}>{selectedUser.username}</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: '8px' }}>
+              (green = has access · crimson = no access — click to toggle)
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '10px' }}>
+            {agents.map(ea => {
+              const has = eaAccessList.some(e => e.expert_agent_id === ea.id);
+              return (
+                <div key={ea.id} onClick={() => handleEaToggle(ea)} style={{
+                  display: 'flex', alignItems: 'center', gap: '10px',
+                  padding: '10px 14px', cursor: 'pointer',
+                  background: 'var(--bg-tertiary)',
+                  border: `1px solid ${has ? '#15803d' : 'var(--border-color)'}`,
+                  borderRadius: 'var(--border-radius-md)',
+                }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '2px', backgroundColor: ea.color_theme, flexShrink: 0 }} />
+                  <span style={{ fontSize: '13px', color: 'var(--text-primary)', flex: 1 }}>{ea.name}</span>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, backgroundColor: has ? '#00ff88' : '#dc143c' }} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: '48px', left: '50%', transform: 'translateX(-50%)',
+          background: '#1e293b', color: '#f8fafc', padding: '12px 24px',
+          borderRadius: 'var(--border-radius-md)', fontSize: '13px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.4)', zIndex: 1000, whiteSpace: 'nowrap',
+        }}>{toast}</div>
+      )}
+    </div>
+  );
+};

@@ -56,8 +56,8 @@ export const Banner: React.FC = () => {
           {theme === 'light' ? '🌙' : '☀️'}
         </button>
 
-        {/* Admin button — admin role only */}
-        {session?.role === 'admin' && (
+        {/* Admin button — admin and superuser roles only */}
+        {(session?.role === 'admin' || session?.role === 'superuser') && (
           <button
             onClick={() => { window.location.hash = '#admin'; }}
             style={{

@@ -12,7 +12,7 @@ import app.models.user    # noqa: F401
 import app.models.agent   # noqa: F401
 import app.models.log     # noqa: F401
 
-from app.api import auth, agents, logs
+from app.api import auth, agents, logs, users
 
 
 @asynccontextmanager
@@ -41,6 +41,7 @@ app.add_middleware(
 app.include_router(auth.router,   prefix="/api")
 app.include_router(agents.router, prefix="/api")
 app.include_router(logs.router,   prefix="/api")
+app.include_router(users.router,  prefix="/api")
 
 
 # Adding this block to handle the "/" URL
