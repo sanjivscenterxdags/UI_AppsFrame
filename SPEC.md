@@ -2,7 +2,7 @@
 
 **Project:** CDAGS AI-Agents: OT-IT Convergence & Cybersecurity
 **Pattern:** Mixture of Experts (MoE)
-**Status:** Iteration 3 (User Management) COMPLETE — Iteration 4 IN PLANNING
+**Status:** Iteration 3b (User Management Polish) COMPLETE — Iteration 4 IN PLANNING
 **Last updated:** 2026-06-13
 **Branch:** `iteration-2`
 
@@ -273,6 +273,8 @@ class EaAccessUpdate(BaseModel):
 | `GET` | `/api/users/{id}/ea-access` | JWT + superuser | List EA access for user |
 | `POST` | `/api/users/{id}/ea-access` | JWT + superuser | Grant EA access |
 | `DELETE` | `/api/users/{id}/ea-access/{ea_id}` | JWT + superuser | Revoke EA access |
+| `POST` | `/api/users/export` | JWT + superuser | Stream Excel (.xlsx) of full user roster |
+| `POST` | `/api/users/iam-lookup` | JWT + superuser | Query LDAP for corporate_id by email; 503 if IAM_* env vars absent |
 | `GET` | `/health` | None | `{"status": "ok"}` |
 
 > **Pending (Iteration 4):** `PATCH /api/agents/{id}` — toggle `is_active` on ExpertAgent.
@@ -476,30 +478,38 @@ Full CRUD UI — superuser only. Three sections:
 | Field | Editable | Notes |
 |-------|----------|-------|
 | Username | Add only | Locked in edit mode; format `first.l` (regex validated) |
+| Full Name | Yes | Display name e.g. "Alice Smith"; optional; auto-filled by IAM Lookup |
 | Email | Yes | EmailStr validated |
-| Default / Reset Password | Yes | Min 8 chars; show/hide toggle (SVG eye icon) |
-| Corporate ID | Yes | Optional alphanumeric |
+| Default / Reset Password | Add: required (min 8) · Edit: blank = keep current; explicit confirm before reset |
+| Corporate ID | Yes | Optional; auto-filled by IAM Lookup button |
+| IAM Lookup | Button | Queries FreeIPA/Keycloak LDAP; fills Corporate ID + Full Name; 503 if unconfigured |
 | Date Created | Read-only | Auto-generated — darker background, muted text |
 | System UID | Read-only | 8-char UUID hex, monospace — darker background, muted text |
 | Role | Yes | `<select>` from `ROLE_LABELS` |
 
+**Unsaved-changes guard**: when any field is changed, the form border turns blue and "● unsaved changes" appears. Clicking another row or Clear prompts "Discard and continue?" if dirty.
+
 **Section 2 — Search / Filter Bar + Role Matrix Table**
 
-- **Username search**: live text filter, updates on keystroke, `✕` clear button
-- **Role filter dropdown**: `SHORT — Full Name` format (e.g. `SU — Superuser`), `✕` clear button
-- Both filters compose; match count shows `N / M users`
+- **Search**: live text filter covers `username`, `full_name`, and `email` — `✕` clear button
+- **Role filter**: `SHORT — Full Name` format (e.g. `SU — Superuser`), `✕` clear button
+- **Status filter**: All / Active only / Suspended only, `✕` clear button
+- All three filters compose; match count shows `N / M users`
 - **Table**: sticky header, `max-height: 420px`, `overflow-y: auto` scroll
-- **Sortable columns**: Username and Status — click to toggle ▲/▼, dimmed `⇅` when inactive
-- **Columns**: Username | UID | Status | SU | OPR | DATA | ASSET-REG | ASSET-RISK | CHANGE | LOG | SIEM | REPORTS | GENERAL | Actions
-- **RoleDot**: 12px circle — neon green `#00ff88` = current role, crimson `#dc143c` = other role; click non-current dot → `window.confirm()` → PATCH role
+- **Sortable columns**: Username, Role, and Status — click to toggle ▲/▼, dimmed `⇅` when inactive
+- **Columns**: Username | Full Name | UID | Status | Role | SU | OPR | DATA | ASSET-REG | ASSET-RISK | CHANGE | LOG | SIEM | REPORTS | GENERAL | Actions
+- **RoleDot**: 12px circle — neon green `#00ff88` = current role, crimson `#dc143c` = other. Display-only — role changes must go through the form's Role dropdown + Update button
 - **Status**: "Active" in `#00ff88`, "Suspended" in `#ff6a00`
 - **Actions**: Suspend/Restore (orange/green) + Delete (crimson) with confirm dialogs
+- **Delete guard**: backend rejects self-delete (400) and last-superuser-delete (400)
 
 **Section 3 — EA Access Panel** (general-user only)
 
-Shown below the table when a `general-user` row is selected. Lists all 8 Expert Agents as toggle cards. Green border + green dot = access granted; crimson dot = no access. Click to toggle.
+Shown below the table when a `general-user` row is selected. Lists all 8 Expert Agents as toggle cards. Green border + green dot = access granted; crimson dot = no access. Click to toggle. Panel fades during in-flight requests; `eaBusy` flag prevents double-click races. Full Name shown beside username in panel header.
 
-**Toast**: fixed bottom-center, 3s auto-dismiss.
+**Toast system**: fixed bottom-center.
+- Info toasts: dark background, auto-dismiss 4s
+- Error toasts: red-tinted background + border, auto-dismiss 7s
 
 **Role short codes** (column headers):
 
@@ -668,6 +678,50 @@ Admin "<username>" attempted to <activate|deactivate> agent "<name>" (id=<id>).
 | Grid/Tile toggle disabled for user-mgmt and prompt-window views | ✓ |
 | `⚙ Admin` button visible for superuser role (not just admin) | ✓ |
 | `npx tsc --noEmit` — zero errors | ✓ |
+
+### Iteration 3b — COMPLETE ✓
+
+User Management polish and three functional enhancements.
+
+#### New backend
+| Task | Status |
+|------|--------|
+| `full_name` column added to `users` table (seed.py migration) | ✓ |
+| `UserCreateAdmin`, `UserListItem`, `UserUpdate` schemas include `full_name` | ✓ |
+| `IamLookupRequest` schema added | ✓ |
+| `POST /api/users/export` — openpyxl Excel in-memory, StreamingResponse | ✓ |
+| `POST /api/users/iam-lookup` — FreeIPA/Keycloak LDAP query; 503 if unconfigured | ✓ |
+| `DELETE /api/users/{id}` — rejects self-delete (400) and last-superuser-delete (400) | ✓ |
+| `openpyxl==3.1.5`, `ldap3==2.9.1` added to `requirements.txt` | ✓ |
+
+#### New frontend
+| Task | Status |
+|------|--------|
+| `full_name` field in form Row 1; populates from IAM lookup | ✓ |
+| `IamLookupResult` type added to `src/types/index.ts` | ✓ |
+| `exportUsers()`, `iamLookup()` added to `useUserMgmt.ts` | ✓ |
+| "Export & Download" triggers real browser `.xlsx` download via blob URL | ✓ |
+| IAM Lookup button inline with Corporate ID — busy/spinner state | ✓ |
+| Full Name column in role matrix table | ✓ |
+| Search expands to cover `username`, `full_name`, and `email` | ✓ |
+| Status filter dropdown (All / Active only / Suspended only) | ✓ |
+| Role column added to table with sortable arrow | ✓ |
+| Role dots are display-only — role changes via form only (eliminates misclick risk) | ✓ |
+| `isDirty` unsaved-changes indicator — blue border + "● unsaved changes" label | ✓ |
+| `confirmDiscardIfDirty()` — warns before switching rows or clearing with unsaved changes | ✓ |
+| Password reset on Update requires explicit `window.confirm()` — prevents accidental reset | ✓ |
+| Toast system split: info (dark) vs error (red-tinted, 7s) | ✓ |
+| EA Access panel: opacity fade + `eaBusy` flag prevents double-click races | ✓ |
+| EA Access panel shows `full_name` beside username | ✓ |
+| `npx tsc --noEmit` — zero errors | ✓ |
+
+#### IAM environment variables (optional — all four required to enable lookup)
+```
+IAM_LDAP_URL=ldap://ipa.cdags.local
+IAM_BIND_DN=cn=readonly,dc=cdags,dc=local
+IAM_BIND_PASSWORD=<readonly-svc-account-pw>
+IAM_SEARCH_BASE=dc=cdags,dc=local
+```
 
 ### Iteration 4 — PLANNED (Next)
 

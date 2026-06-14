@@ -99,10 +99,23 @@ def reset_password(user_id: int, payload: PasswordReset, db: Session = Depends(g
 
 @router.delete("/{user_id}", status_code=204)
 def delete_user(user_id: int, db: Session = Depends(get_db),
-                _token: dict = Depends(require_superuser)):
+                token: dict = Depends(require_superuser)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    # Prevent self-delete
+    if token.get("id") == user_id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
+    # Prevent deleting the last superuser
+    if user.role == "superuser":
+        remaining = db.query(User).filter(
+            User.role == "superuser", User.id != user_id
+        ).count()
+        if remaining == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot delete the last superuser — promote another user first",
+            )
     db.delete(user)
     db.commit()
 

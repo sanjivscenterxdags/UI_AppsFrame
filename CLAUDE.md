@@ -12,6 +12,7 @@ This file is read automatically at the start of every session. It tells Claude C
 
 **Full specification:** `SPEC.md`
 **Iteration 3 workbook:** `WORKBOOK-Iteration-3.md`
+**Iteration 3b workbook:** `WORKBOOK-3b.md`
 
 ---
 
@@ -143,16 +144,27 @@ npm run dev        # http://localhost:6173
 
 ## Current State (as of 2026-06-13)
 
-### Iteration 3 — COMPLETE
+### Iteration 3b — COMPLETE (User Management Polish)
 
 - **RBAC:** 10 defined roles (see `VALID_ROLES` in `backend/app/schemas/user.py` and `UserRole` type in `frontend/src/types/index.ts`)
-- **Backend:** `/api/users/` — 8 endpoints, all superuser-gated via `require_superuser()`
-- **User model:** `is_active`, `corporate_id`, `uid` added via migrations in `seed.py`
+- **Backend:** `/api/users/` — 10 endpoints, all superuser-gated via `require_superuser()`
+  - Includes `POST /export` (Excel download) and `POST /iam-lookup` (LDAP directory)
+  - `DELETE` rejects self-delete and last-superuser-delete (HTTP 400)
+- **User model:** `is_active`, `corporate_id`, `uid`, `full_name` columns — all via seed.py migrations
 - **`UserEaAccess` join table:** controls which Expert Agents a `general-user` can access
-- **Frontend hook:** `useUserMgmt.ts` — full CRUD + EA access + audit logging
-- **`UserMgmtView.tsx`:** form + role matrix table + EA access panel + search/filter/sort
+- **Frontend hook:** `useUserMgmt.ts` — full CRUD + EA access + exportUsers + iamLookup + logAdminAction
+- **`UserMgmtView.tsx`:** all 10 UX improvements implemented (see WORKBOOK-3b.md)
 - **`mike.k`** seeded as first superuser (password: `Admin1234!`)
 - TypeScript: zero errors (`tsc --noEmit` passes)
+
+### Key conventions added in Iteration 3b
+- **`isDirty` guard:** form tracks unsaved state; row switch / clear prompts if dirty
+- **Password reset confirm:** typing in "Reset Password" field + Update → explicit `window.confirm()` before reset is sent
+- **Role dots are display-only:** role changes go through the form's Role `<select>` + Update only
+- **Toast types:** `showInfo()` (dark, 4s) vs `showError()` (red-tinted, 7s)
+- **EA busy lock:** `eaBusy` flag + opacity fade prevents double-click races on EA toggle
+- **Export flow:** fetch blob → `URL.createObjectURL` → hidden `<a>` click → revoke — no server-side file storage
+- **Search scope:** covers `username`, `full_name`, and `email` (not just username)
 
 ### What is NOT done (known gaps going into Iteration 4)
 1. **`PATCH /api/agents/{id}`** — backend toggle not implemented; UI shows "not yet implemented" toast
@@ -161,6 +173,7 @@ npm run dev        # http://localhost:6173
 4. **`POST /api/orchestrate`** — orchestrator endpoint not implemented
 5. **No test suite** — no Pytest tests in `backend/tests/`
 6. **Role-based `/#app`** — non-admin users have no dedicated app shell yet
+7. **Export email delivery** — Export downloads locally; Stalwart email integration deferred to future iteration
 
 ---
 
