@@ -3,7 +3,7 @@
 **Project:** CDAGS AI-Agents: OT-IT Convergence & Cybersecurity
 **Pattern:** Mixture of Experts (MoE)
 **Status:** Iteration 3b (User Management Polish) COMPLETE — Iteration 4 IN PLANNING
-**Last updated:** 2026-06-13
+**Last updated:** 2026-06-14
 **Branch:** `iteration-2`
 
 ---
@@ -133,6 +133,7 @@ erDiagram
     USERS {
         int id PK
         string username "unique, lowercase first.l format"
+        string full_name "nullable, display name"
         string email "unique"
         string hashed_password "bcrypt"
         string role "one of 11 defined roles"
@@ -231,6 +232,7 @@ VALID_ROLES: frozenset = frozenset({
 
 class UserCreateAdmin(BaseModel):
     username:     str           # first_name.last_initial, lowercase
+    full_name:    Optional[str] # display name e.g. "Alice Smith"
     email:        EmailStr
     password:     str           # min 8 chars
     role:         str           # validated against VALID_ROLES
@@ -238,12 +240,12 @@ class UserCreateAdmin(BaseModel):
     is_active:    bool = True
 
 class UserListItem(BaseModel):
-    id: int; uid: str; username: str; email: str
+    id: int; uid: str; username: str; full_name: Optional[str]; email: str
     role: str; is_active: bool; corporate_id: Optional[str]
     created_at: datetime; updated_at: Optional[datetime]
 
 class UserUpdate(BaseModel):    # all Optional — partial PATCH
-    email: Optional[EmailStr]; role: Optional[str]
+    full_name: Optional[str]; email: Optional[EmailStr]; role: Optional[str]
     corporate_id: Optional[str]; is_active: Optional[bool]
 
 class PasswordReset(BaseModel):
@@ -254,6 +256,9 @@ class EaAccessItem(BaseModel):
 
 class EaAccessUpdate(BaseModel):
     expert_agent_id: int
+
+class IamLookupRequest(BaseModel):
+    email: EmailStr
 ```
 
 ### 2.5 API Endpoints — Current State
@@ -267,14 +272,14 @@ class EaAccessUpdate(BaseModel):
 | `POST` | `/api/logs/` | JWT | Add log entry (audit trail from admin UI) |
 | `GET` | `/api/users/` | JWT + superuser | List all users ordered by username |
 | `POST` | `/api/users/` | JWT + superuser | Create user — validates role, generates uid |
-| `PATCH` | `/api/users/{id}` | JWT + superuser | Partial update (email, role, is_active, corporate_id) |
+| `PATCH` | `/api/users/{id}` | JWT + superuser | Partial update (full_name, email, role, is_active, corporate_id) |
 | `POST` | `/api/users/{id}/reset-password` | JWT + superuser | Hash and store new password |
-| `DELETE` | `/api/users/{id}` | JWT + superuser | Hard delete user |
+| `DELETE` | `/api/users/{id}` | JWT + superuser | Hard delete user; rejects self-delete + last-superuser-delete |
 | `GET` | `/api/users/{id}/ea-access` | JWT + superuser | List EA access for user |
 | `POST` | `/api/users/{id}/ea-access` | JWT + superuser | Grant EA access |
 | `DELETE` | `/api/users/{id}/ea-access/{ea_id}` | JWT + superuser | Revoke EA access |
 | `POST` | `/api/users/export` | JWT + superuser | Stream Excel (.xlsx) of full user roster |
-| `POST` | `/api/users/iam-lookup` | JWT + superuser | Query LDAP for corporate_id by email; 503 if IAM_* env vars absent |
+| `POST` | `/api/users/iam-lookup` | JWT + superuser | Query LDAP for corporate_id + full_name by email; 503 if IAM_* env vars absent |
 | `GET` | `/health` | None | `{"status": "ok"}` |
 
 > **Pending (Iteration 4):** `PATCH /api/agents/{id}` — toggle `is_active` on ExpertAgent.
@@ -312,6 +317,7 @@ Run: `cd backend && python seed.py`
 | `is_active` | `users` | Iteration 3 |
 | `corporate_id` | `users` | Iteration 3 |
 | `uid` | `users` | Iteration 3 |
+| `full_name` | `users` | Iteration 3b |
 
 #### Seeded Users
 
@@ -351,6 +357,15 @@ Required in `backend/app/.env`:
 DATABASE_URL=sqlite:///./cdags_framework.db
 JWT_SECRET_KEY=<random 32-byte hex — generate: openssl rand -hex 32>
 JWT_EXPIRE_MINUTES=60
+```
+
+Optional — all four required to enable IAM Lookup:
+
+```
+IAM_LDAP_URL=ldap://ipa.cdags.local
+IAM_BIND_DN=cn=readonly,dc=cdags,dc=local
+IAM_BIND_PASSWORD=<readonly-svc-account-pw>
+IAM_SEARCH_BASE=dc=cdags,dc=local
 ```
 
 ---
@@ -395,13 +410,13 @@ frontend/
     │   ├── AdminApp.tsx                # AdminShell — viewMode state, activeView state
     │   ├── hooks/
     │   │   ├── useAdminAgents.ts       # Agent management + logAdminAction()
-    │   │   └── useUserMgmt.ts          # User CRUD + EA access + logAdminAction()
+    │   │   └── useUserMgmt.ts          # User CRUD + EA access + exportUsers() + iamLookup()
     │   └── components/
     │       ├── AdminBanner.tsx         # Grid/Tile toggle (disabled for non-grid views)
     │       ├── AdminNav.tsx            # Left nav — 4 views
     │       ├── AdminFooter.tsx
     │       └── views/
-    │           ├── UserMgmtView.tsx    # Full user management UI (Iteration 3)
+    │           ├── UserMgmtView.tsx    # Full user management UI (Iteration 3 + 3b)
     │           ├── AgentMgmtView.tsx   # Agent table/tile, Activate/Deactivate
     │           ├── PromptWindowView.tsx
     │           └── HealthStatusView.tsx
@@ -443,7 +458,7 @@ areas:   "admin-banner admin-banner"
 
 | View | Key | Status |
 |------|-----|--------|
-| User Management | `user-mgmt` | Implemented (Iteration 3) |
+| User Management | `user-mgmt` | Implemented (Iteration 3 + 3b) |
 | AI-Agent Management | `agent-mgmt` | Implemented (Iteration 2) |
 | Prompt Window | `prompt-window` | Placeholder |
 | Health Status | `health-status` | Implemented (Iteration 2) |
@@ -548,9 +563,10 @@ export const ALL_ROLES: UserRole[]              // 10 roles (excludes 'admin' le
 export const ROLE_LABELS: Record<UserRole, string>  // human-readable labels
 export const ROLE_SHORT: Record<string, string>     // SU, OPR, DATA, …, GENERAL
 
-export interface UserListItem { id, uid, username, email, role, is_active, corporate_id, created_at, updated_at }
-export interface UserCreatePayload { username, email, password, role, corporate_id?, is_active? }
-export interface UserUpdatePayload { email?, role?, corporate_id?, is_active? }
+export interface UserListItem { id, uid, username, full_name?, email, role, is_active, corporate_id, created_at, updated_at }
+export interface IamLookupResult { corporate_id: string; full_name: string }
+export interface UserCreatePayload { username, full_name?, email, password, role, corporate_id?, is_active? }
+export interface UserUpdatePayload { full_name?, email?, role?, corporate_id?, is_active? }
 export interface EaAccessItem { id, user_id, expert_agent_id }
 ```
 
@@ -714,14 +730,6 @@ User Management polish and three functional enhancements.
 | EA Access panel: opacity fade + `eaBusy` flag prevents double-click races | ✓ |
 | EA Access panel shows `full_name` beside username | ✓ |
 | `npx tsc --noEmit` — zero errors | ✓ |
-
-#### IAM environment variables (optional — all four required to enable lookup)
-```
-IAM_LDAP_URL=ldap://ipa.cdags.local
-IAM_BIND_DN=cn=readonly,dc=cdags,dc=local
-IAM_BIND_PASSWORD=<readonly-svc-account-pw>
-IAM_SEARCH_BASE=dc=cdags,dc=local
-```
 
 ### Iteration 4 — PLANNED (Next)
 
