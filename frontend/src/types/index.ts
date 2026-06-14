@@ -87,6 +87,7 @@ export interface UserListItem {
   id:           number;
   uid:          string;
   username:     string;
+  full_name:    string | null;
   email:        string;
   role:         UserRole;
   is_active:    boolean;
@@ -100,6 +101,7 @@ export interface UserCreatePayload {
   email:        string;
   password:     string;
   role:         UserRole;
+  full_name?:   string;
   corporate_id?: string;
   is_active?:   boolean;
 }
@@ -107,6 +109,7 @@ export interface UserCreatePayload {
 export interface UserUpdatePayload {
   email?:        string;
   role?:         UserRole;
+  full_name?:    string;
   corporate_id?: string;
   is_active?:    boolean;
 }
@@ -115,4 +118,9 @@ export interface EaAccessItem {
   id:              number;
   user_id:         number;
   expert_agent_id: number;
+}
+
+export interface IamLookupResult {
+  corporate_id: string;
+  display_name: string;
 }

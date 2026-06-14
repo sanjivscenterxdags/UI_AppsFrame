@@ -1,7 +1,11 @@
+import io
+import os
 import uuid
 from typing import List
 
+import openpyxl
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -10,6 +14,7 @@ from app.models.agent import ExpertAgent
 from app.schemas.user import (
     UserCreateAdmin, UserListItem, UserUpdate,
     PasswordReset, EaAccessItem, EaAccessUpdate, VALID_ROLES,
+    IamLookupRequest,
 )
 from app.api.auth import require_jwt, pwd_context
 
@@ -50,6 +55,7 @@ def create_user(payload: UserCreateAdmin, db: Session = Depends(get_db),
         email=str(payload.email),
         hashed_password=pwd_context.hash(payload.password),
         role=payload.role,
+        full_name=payload.full_name,
         corporate_id=payload.corporate_id,
         is_active=payload.is_active,
         uid=uuid.uuid4().hex[:8],
@@ -141,3 +147,92 @@ def remove_ea_access(user_id: int, expert_agent_id: int, db: Session = Depends(g
         raise HTTPException(status_code=404, detail="EA access entry not found")
     db.delete(entry)
     db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Iteration 3b — Excel export
+# ---------------------------------------------------------------------------
+
+@router.post("/export")
+def export_users_excel(db: Session = Depends(get_db),
+                       _token: dict = Depends(require_superuser)):
+    """Generate an in-memory Excel workbook of the full user roster and stream it."""
+    users = db.query(User).order_by(User.username).all()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "CDAGS Users"
+
+    headers = ["UID", "Username", "Full Name", "Email", "Role",
+               "Corporate ID", "Active", "Created At"]
+    ws.append(headers)
+
+    for u in users:
+        ws.append([
+            u.uid,
+            u.username,
+            u.full_name or "",
+            u.email,
+            u.role,
+            u.corporate_id or "",
+            "Yes" if u.is_active else "No",
+            u.created_at.strftime("%Y-%m-%d") if u.created_at else "",
+        ])
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=cdags_users.xlsx"},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Iteration 3b — IAM lookup (FreeIPA / Keycloak LDAP)
+# ---------------------------------------------------------------------------
+
+@router.post("/iam-lookup")
+def iam_lookup(payload: IamLookupRequest,
+               _token: dict = Depends(require_superuser)):
+    """Query FreeIPA / Keycloak LDAP for corporate_id by corporate email address."""
+    iam_url  = os.getenv("IAM_LDAP_URL")
+    iam_dn   = os.getenv("IAM_BIND_DN")
+    iam_pass = os.getenv("IAM_BIND_PASSWORD")
+    iam_base = os.getenv("IAM_SEARCH_BASE")
+
+    if not all([iam_url, iam_dn, iam_pass, iam_base]):
+        raise HTTPException(
+            status_code=503,
+            detail="IAM integration not configured — set IAM_LDAP_URL, IAM_BIND_DN, IAM_BIND_PASSWORD, IAM_SEARCH_BASE in .env",
+        )
+
+    try:
+        from ldap3 import Server, Connection, ALL
+        server = Server(iam_url, get_info=ALL)
+        conn = Connection(server, iam_dn, iam_pass, auto_bind=True)
+        conn.search(
+            iam_base,
+            f"(mail={str(payload.email)})",
+            attributes=["employeeNumber", "uid", "cn"],
+        )
+        if not conn.entries:
+            raise HTTPException(status_code=404, detail="No IAM entry found for this email")
+
+        entry = conn.entries[0]
+        # Prefer employeeNumber; fall back to uid attribute; then empty string
+        corp_id = ""
+        if entry.employeeNumber and entry.employeeNumber.value:
+            corp_id = str(entry.employeeNumber.value)
+        elif entry.uid and entry.uid.value:
+            corp_id = str(entry.uid.value)
+
+        display = str(entry.cn.value) if entry.cn and entry.cn.value else ""
+        return {"corporate_id": corp_id, "display_name": display}
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"IAM query failed: {str(exc)}")

@@ -12,6 +12,7 @@ class User(Base):
     email            = Column(String,   unique=True, nullable=False)
     hashed_password  = Column(String,   nullable=False)
     role             = Column(String,   nullable=False, default='general-user')
+    full_name        = Column(String,   nullable=True)
     is_active        = Column(Boolean,  nullable=False, default=True)
     corporate_id     = Column(String,   nullable=True)
     uid              = Column(String,   unique=True, nullable=False, index=True)

@@ -61,6 +61,7 @@ class UserCreateAdmin(BaseModel):
     email:        EmailStr
     password:     str           = Field(..., min_length=8)
     role:         str           = Field(..., description="Must be one of the defined VALID_ROLES")
+    full_name:    Optional[str] = Field(None, description="Full display name, e.g. Alice Smith")
     corporate_id: Optional[str] = Field(None, description="Alphanumeric external corporate ID")
     is_active:    bool          = Field(True)
 
@@ -69,6 +70,7 @@ class UserListItem(BaseModel):
     id:           int
     uid:          str
     username:     str
+    full_name:    Optional[str] = None
     email:        str
     role:         str
     is_active:    bool
@@ -83,6 +85,7 @@ class UserListItem(BaseModel):
 class UserUpdate(BaseModel):
     email:        Optional[EmailStr] = None
     role:         Optional[str]      = None
+    full_name:    Optional[str]      = None
     corporate_id: Optional[str]      = None
     is_active:    Optional[bool]     = None
 
@@ -102,3 +105,11 @@ class EaAccessItem(BaseModel):
 
 class EaAccessUpdate(BaseModel):
     expert_agent_id: int
+
+
+# ---------------------------------------------------------------------------
+# Iteration 3b — new schemas
+# ---------------------------------------------------------------------------
+
+class IamLookupRequest(BaseModel):
+    email: EmailStr

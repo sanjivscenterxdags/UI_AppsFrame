@@ -70,6 +70,9 @@ def seed_database():
     _migrate_add_column_if_missing("corporate_id", "users", "VARCHAR")
     _migrate_add_column_if_missing("uid",          "users", "VARCHAR")
 
+    # --- Iteration 3b: full display name ---
+    _migrate_add_column_if_missing("full_name",    "users", "VARCHAR")
+
     # Back-fill uid for any existing users that have NULL uid
     import sqlalchemy as _sa
     with engine.connect() as conn:

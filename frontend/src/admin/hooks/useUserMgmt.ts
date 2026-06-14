@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  UserListItem, UserCreatePayload, UserUpdatePayload, EaAccessItem,
+  UserListItem, UserCreatePayload, UserUpdatePayload, EaAccessItem, IamLookupResult,
 } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 
@@ -16,6 +16,8 @@ export interface UseUserMgmtResult {
   getEaAccess: (userId: number) => Promise<EaAccessItem[]>;
   addEaAccess: (userId: number, expertAgentId: number) => Promise<boolean>;
   removeEaAccess: (userId: number, expertAgentId: number) => Promise<boolean>;
+  exportUsers: () => Promise<boolean>;
+  iamLookup: (email: string) => Promise<IamLookupResult | null>;
   logAdminAction: (message: string) => Promise<void>;
 }
 
@@ -152,6 +154,35 @@ export function useUserMgmt(): UseUserMgmtResult {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
+  const exportUsers = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/users/export', {
+        method: 'POST',
+        headers: authHeader(),
+      });
+      if (res.status === 401) { logout(); return false; }
+      return res.ok;
+    } catch {
+      return false;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, logout]);
+
+  const iamLookup = useCallback(async (email: string): Promise<IamLookupResult | null> => {
+    try {
+      const res = await fetch('/api/users/iam-lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) return null;
+      return await res.json() as IamLookupResult;
+    } catch {
+      return null;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
   const logAdminAction = useCallback(async (message: string): Promise<void> => {
     if (!session) return;
     try {
@@ -168,6 +199,7 @@ export function useUserMgmt(): UseUserMgmtResult {
   return {
     users, loading, error, refetch: fetchUsers,
     createUser, updateUser, resetPassword, deleteUser,
-    getEaAccess, addEaAccess, removeEaAccess, logAdminAction,
+    getEaAccess, addEaAccess, removeEaAccess,
+    exportUsers, iamLookup, logAdminAction,
   };
 }

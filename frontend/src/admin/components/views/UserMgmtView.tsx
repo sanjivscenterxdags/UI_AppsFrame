@@ -7,7 +7,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useUserMgmt } from '../../hooks/useUserMgmt';
 
 const emptyForm = {
-  username: '', email: '', password: '', corporate_id: '',
+  username: '', full_name: '', email: '', password: '', corporate_id: '',
   role: 'general-user' as UserRole,
 };
 type FormState = typeof emptyForm;
@@ -42,7 +42,8 @@ export const UserMgmtView: React.FC = () => {
   const {
     users, loading, error, refetch,
     createUser, updateUser, resetPassword, deleteUser,
-    getEaAccess, addEaAccess, removeEaAccess, logAdminAction,
+    getEaAccess, addEaAccess, removeEaAccess,
+    exportUsers, iamLookup, logAdminAction,
   } = useUserMgmt();
 
   const [agents, setAgents] = useState<ExpertAgent[]>([]);
@@ -57,6 +58,7 @@ export const UserMgmtView: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('username');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [showPassword, setShowPassword] = useState(false);
+  const [iamBusy, setIamBusy] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -66,7 +68,7 @@ export const UserMgmtView: React.FC = () => {
 
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(null), 3000);
+    const t = setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(t);
   }, [toast]);
 
@@ -109,8 +111,14 @@ export const UserMgmtView: React.FC = () => {
 
   const selectRow = async (user: UserListItem) => {
     setSelectedUser(user); setFormMode('edit');
-    setForm({ username: user.username, email: user.email, password: '',
-               corporate_id: user.corporate_id ?? '', role: user.role });
+    setForm({
+      username: user.username,
+      full_name: user.full_name ?? '',
+      email: user.email,
+      password: '',
+      corporate_id: user.corporate_id ?? '',
+      role: user.role,
+    });
     setEaAccessList([]);
     if (user.role === 'general-user') {
       setShowEaPanel(true);
@@ -132,7 +140,8 @@ export const UserMgmtView: React.FC = () => {
     if (err) { setToast(`⚠ ${err}`); return; }
     const result = await createUser({
       username: form.username, email: form.email, password: form.password,
-      role: form.role, corporate_id: form.corporate_id || undefined,
+      role: form.role, full_name: form.full_name || undefined,
+      corporate_id: form.corporate_id || undefined,
     });
     if (result) {
       await logAdminAction(`Superuser "${session?.username}" created user "${form.username}" with role "${form.role}".`);
@@ -147,6 +156,7 @@ export const UserMgmtView: React.FC = () => {
     const patch: Record<string, unknown> = {};
     if (form.email !== selectedUser.email) patch.email = form.email;
     if (form.role !== selectedUser.role) patch.role = form.role;
+    if (form.full_name !== (selectedUser.full_name ?? '')) patch.full_name = form.full_name || null;
     if (form.corporate_id !== (selectedUser.corporate_id ?? '')) patch.corporate_id = form.corporate_id || null;
     if (Object.keys(patch).length > 0) {
       if (!(await updateUser(selectedUser.id, patch))) { setToast('Update failed.'); return; }
@@ -195,16 +205,40 @@ export const UserMgmtView: React.FC = () => {
     setEaAccessList(await getEaAccess(selectedUser.id));
   };
 
+  const handleExport = async () => {
+    await logAdminAction(`Superuser "${session?.username}" triggered user roster export.`);
+    const ok = await exportUsers();
+    setToast(ok
+      ? 'Export ready — email delivery not yet configured (Stalwart pending)'
+      : 'Export failed — check backend logs');
+  };
+
+  const handleIamLookup = async () => {
+    if (!form.email) { setToast('⚠ Enter email address first'); return; }
+    setIamBusy(true);
+    const result = await iamLookup(form.email);
+    setIamBusy(false);
+    if (!result) {
+      setToast('IAM lookup failed — not configured or email not found in directory');
+      return;
+    }
+    setForm(f => ({
+      ...f,
+      corporate_id: result.corporate_id || f.corporate_id,
+      full_name: result.display_name || f.full_name,
+    }));
+    setToast('✓ Corporate ID (and name) populated from IAM directory');
+  };
+
   // Styles
   const inputStyle: React.CSSProperties = {
     background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)',
     borderRadius: 'var(--border-radius-sm)', color: 'var(--text-primary)',
     padding: '6px 10px', fontSize: '13px', width: '100%', boxSizing: 'border-box',
   };
-  // Read-only info fields — visually distinct from editable inputs
   const readonlyStyle: React.CSSProperties = {
     ...inputStyle,
-    background: '#1a1f2e',       // darker, clearly non-editable
+    background: '#1a1f2e',
     color: 'var(--text-tertiary)',
     border: '1px solid transparent',
     cursor: 'default',
@@ -215,18 +249,26 @@ export const UserMgmtView: React.FC = () => {
     marginBottom: '4px', display: 'block',
   };
   const readonlyLabelStyle: React.CSSProperties = {
-    ...labelStyle, color: '#475569', // even more muted for info-only labels
+    ...labelStyle, color: '#475569',
   };
 
   return (
     <div>
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h2 style={{ fontWeight: 600, color: 'var(--text-primary)' }}>User Management</h2>
-        <button onClick={refetch} style={{
-          background: 'none', border: '1px solid var(--border-color)',
-          borderRadius: 'var(--border-radius-md)', color: 'var(--text-secondary)',
-          padding: '6px 14px', cursor: 'pointer', fontSize: '13px',
-        }}>Refresh</button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={handleExport} style={{
+            background: 'none', border: '1px solid var(--border-color)',
+            borderRadius: 'var(--border-radius-md)', color: 'var(--text-secondary)',
+            padding: '6px 14px', cursor: 'pointer', fontSize: '13px',
+          }}>Export &amp; Email</button>
+          <button onClick={refetch} style={{
+            background: 'none', border: '1px solid var(--border-color)',
+            borderRadius: 'var(--border-radius-md)', color: 'var(--text-secondary)',
+            padding: '6px 14px', cursor: 'pointer', fontSize: '13px',
+          }}>Refresh</button>
+        </div>
       </div>
 
       {/* ── Section 1: Form ──────────────────────────────────────────────────── */}
@@ -238,7 +280,7 @@ export const UserMgmtView: React.FC = () => {
           {formMode === 'add' ? 'Add New User' : `Editing: ${selectedUser?.username}`}
         </div>
 
-        {/* Row 1: editable fields */}
+        {/* Row 1: Username | Full Name | Email | Password */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '12px' }}>
           <div>
             <label style={labelStyle}>Username</label>
@@ -247,6 +289,12 @@ export const UserMgmtView: React.FC = () => {
               onChange={e => setForm(f => ({ ...f, username: e.target.value.toLowerCase() }))}
               placeholder="first.l" />
             {formMode === 'add' && <span style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>first_name.last_initial</span>}
+          </div>
+          <div>
+            <label style={labelStyle}>Full Name</label>
+            <input style={inputStyle} value={form.full_name}
+              onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
+              placeholder="Alice Smith" />
           </div>
           <div>
             <label style={labelStyle}>Email</label>
@@ -288,16 +336,31 @@ export const UserMgmtView: React.FC = () => {
               </button>
             </div>
           </div>
-          <div>
-            <label style={labelStyle}>Corporate ID</label>
-            <input style={inputStyle} value={form.corporate_id}
-              onChange={e => setForm(f => ({ ...f, corporate_id: e.target.value }))}
-              placeholder="Optional" />
-          </div>
         </div>
 
-        {/* Row 2: read-only info + role + buttons */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr auto', gap: '12px', alignItems: 'end' }}>
+        {/* Row 2: Corporate ID + Lookup | Date Created | System UID | Role | Buttons */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1.5fr auto', gap: '12px', alignItems: 'end' }}>
+          <div>
+            <label style={labelStyle}>Corporate ID</label>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input style={{ ...inputStyle, flex: 1 }} value={form.corporate_id}
+                onChange={e => setForm(f => ({ ...f, corporate_id: e.target.value }))}
+                placeholder="Optional — or use Lookup" />
+              <button
+                type="button"
+                onClick={handleIamLookup}
+                disabled={iamBusy}
+                title="Look up corporate ID and name from FreeIPA / Keycloak directory"
+                style={{
+                  background: 'none', border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--border-radius-sm)', color: 'var(--text-secondary)',
+                  padding: '6px 10px', cursor: iamBusy ? 'wait' : 'pointer',
+                  fontSize: '12px', whiteSpace: 'nowrap', flexShrink: 0,
+                  opacity: iamBusy ? 0.5 : 1,
+                }}
+              >{iamBusy ? '…' : '🔍 Lookup'}</button>
+            </div>
+          </div>
           <div>
             <label style={readonlyLabelStyle}>Date Created <span style={{ fontSize: '9px', letterSpacing: 0 }}>(auto)</span></label>
             <input style={readonlyStyle} readOnly tabIndex={-1}
@@ -350,7 +413,6 @@ export const UserMgmtView: React.FC = () => {
         }}>
           {/* Search + Role filter bar */}
           <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            {/* Username search */}
             <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>
               Search
             </span>
@@ -371,10 +433,8 @@ export const UserMgmtView: React.FC = () => {
               }}>✕</button>
             )}
 
-            {/* Divider */}
             <span style={{ width: '1px', height: '20px', background: 'var(--border-color)', flexShrink: 0 }} />
 
-            {/* Role filter dropdown — view only, read-only appearance */}
             <span style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>
               Role
             </span>
@@ -412,6 +472,7 @@ export const UserMgmtView: React.FC = () => {
                   <th style={{ padding: '9px 14px', textAlign: 'left', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
                     Username <SortArrow field="username" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                   </th>
+                  <th style={{ padding: '9px 10px', textAlign: 'left', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>Full Name</th>
                   <th style={{ padding: '9px 10px', textAlign: 'left', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase' }}>UID</th>
                   <th style={{ padding: '9px 10px', textAlign: 'left', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
                     Status <SortArrow field="is_active" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
@@ -426,8 +487,8 @@ export const UserMgmtView: React.FC = () => {
               </thead>
               <tbody>
                 {displayUsers.length === 0 && (
-                  <tr><td colSpan={ALL_ROLES.length + 4} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>
-                    No users match "{search}"
+                  <tr><td colSpan={ALL_ROLES.length + 5} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '13px' }}>
+                    No users match the current filter
                   </td></tr>
                 )}
                 {displayUsers.map((user, i) => (
@@ -438,6 +499,9 @@ export const UserMgmtView: React.FC = () => {
                       cursor: 'pointer',
                     }}>
                     <td style={{ padding: '10px 14px', color: 'var(--text-primary)', fontWeight: 500, whiteSpace: 'nowrap' }}>{user.username}</td>
+                    <td style={{ padding: '10px 10px', color: user.full_name ? 'var(--text-primary)' : 'var(--text-tertiary)', fontSize: '13px' }}>
+                      {user.full_name ?? '—'}
+                    </td>
                     <td style={{ padding: '10px 10px', fontFamily: 'monospace', fontSize: '12px', color: 'var(--text-tertiary)' }}>{user.uid}</td>
                     <td style={{ padding: '10px 10px' }}>
                       <span style={{ fontSize: '12px', fontWeight: 600, color: user.is_active ? '#00ff88' : '#ff6a00' }}>
